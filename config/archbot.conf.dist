@@ -1,0 +1,239 @@
+###############################################################################
+# ArchBot — personnages pilotés par le serveur (bots autonomes et compagnons)
+# ArchBot — server-driven characters (autonomous and companion bots)
+#
+# Modèle versionné. Au premier lancement du serveur monde, ArchCore le copie en
+# archbot.conf (dans le dossier de configuration, config/ ou ARCHCORE_CONF_DIR),
+# qui n'est pas versionné : c'est archbot.conf qu'on modifie.
+#
+# Syntaxe : Clé = valeur ; lignes commençant par # : commentaires ; textes entre
+# guillemets. Une clé absente prend sa valeur par défaut ; une clé inconnue est
+# signalée au démarrage ; une valeur hors bornes est ramenée dans les bornes avec
+# un avertissement. Chaque clé peut être remplacée par une variable d'environnement
+# ARCHCORE_<CLÉ> (même règle que world.conf) : ArchBot.MaxBots -> ARCHCORE_ARCH_BOT_MAX_BOTS.
+###############################################################################
+
+[archbot]
+
+###############################################################################
+# 1. ACTIVATION
+#
+#    ArchBot.Enable
+#        1 = le module tourne avec le serveur monde ; 0 = rien n'est chargé.
+#        Défaut : 1
+
+ArchBot.Enable = 1
+
+#    ArchBot.AutonomousBots
+#        1 = une population de bots autonomes (mode A) est entretenue : ils
+#        explorent, combattent, ramassent, progressent et persistent.
+#        Défaut : 1
+
+ArchBot.AutonomousBots = 1
+
+#    ArchBot.CompanionBots
+#        1 = les joueurs peuvent engager un compagnon (mode B) : /bot hire, puis
+#        follow, stay, come, attack, passive, defensive, aggressive, stop, status.
+#        Défaut : 1
+
+ArchBot.CompanionBots = 1
+
+###############################################################################
+# 2. POPULATION
+#
+#    ArchBot.MaxBots
+#        Bots en jeu au plus, autonomes et compagnons compris (0 à 5000).
+#        Défaut : 100
+
+ArchBot.MaxBots = 100
+
+#    ArchBot.InitialPopulation
+#        Bots autonomes visés au démarrage (ramené à MaxBots). Les commandes MJ
+#        /bot spawn, /bot despawn et /bot population la changent en jeu.
+#        Défaut : 20
+
+ArchBot.InitialPopulation = 20
+
+#    ArchBot.SpawnIntervalMs
+#        Délai entre deux entrées en jeu de bots (ms, 100 à 600000) : la
+#        population monte progressivement, sans à-coup sur le serveur.
+#        Défaut : 1000
+
+ArchBot.SpawnIntervalMs = 1000
+
+#    ArchBot.MinLevel, ArchBot.MaxLevel
+#        Niveau tiré à la création d'un bot autonome (0 à 120 ; 0 = niveau du
+#        modèle). Un bot créé garde ensuite sa progression réelle.
+#        Défaut : 1 et 10
+
+ArchBot.MinLevel = 1
+ArchBot.MaxLevel = 10
+
+#    ArchBot.Classes
+#        TID des modèles jouables permis, séparés par des virgules (ceux de
+#        l'écran de création : 96 Knight, 1 Archer, 6 Mage, 4 Berserker, 8 Hunter,
+#        3 Sorcerer, 377 Swashbuckler, 460 Ranger, 9 Elementalist, 1724 Scion).
+#        Vide : tous les modèles de l'écran de création.
+#        Défaut : ""
+
+ArchBot.Classes = ""
+
+#    ArchBot.PersistCharacters
+#        1 = les personnages des bots restent en base et sont repris au
+#        démarrage suivant (niveau, équipement, position) ; 0 = marqués supprimés
+#        quand le bot quitte le monde.
+#        Défaut : 1
+
+ArchBot.PersistCharacters = 1
+
+#    ArchBot.RotationMinutes
+#        Durée de session d'un bot autonome, en minutes (entre 50 % et 150 % de
+#        cette valeur), après quoi il cède sa place à un autre personnage de la
+#        réserve ; 0 : les bots restent en jeu.
+#        Défaut : 0
+
+ArchBot.RotationMinutes = 0
+
+#    ArchBot.AccountPrefix, ArchBot.NamePrefix
+#        Préfixe des comptes créés pour les bots (un compte par bot, mot de passe
+#        aléatoire) et préfixe ajouté aux noms tirés des personnages.
+#        Défaut : "archbot_" et ""
+
+ArchBot.AccountPrefix = "archbot_"
+ArchBot.NamePrefix = ""
+
+###############################################################################
+# 3. COMPORTEMENT
+#
+#    ArchBot.AllowCombat, ArchBot.AllowLoot, ArchBot.AllowProgression, ArchBot.AllowParty
+#        Combat contre les monstres ; ramassage du butin ; équipement des
+#        meilleurs objets et apprentissage des compétences ; groupes (un bot
+#        accepte les invitations, un compagnon invite son maître).
+#        Défaut : 1
+
+ArchBot.AllowCombat = 1
+ArchBot.AllowLoot = 1
+ArchBot.AllowProgression = 1
+ArchBot.AllowParty = 1
+
+#    ArchBot.ScanRadius
+#        Rayon de perception (monstres, joueurs, objets au sol), en unités
+#        (500 à 20000).
+#        Défaut : 4000
+
+ArchBot.ScanRadius = 4000
+
+#    ArchBot.ExploreRadius
+#        Rayon d'exploration d'un bot autonome autour de son point d'ancrage
+#        (lieu d'apparition), en unités (0 : il ne se promène pas).
+#        Défaut : 3000
+
+ArchBot.ExploreRadius = 3000
+
+#    ArchBot.PickupRadius
+#        Distance à laquelle un bot ramasse un objet (100 à 2000, le serveur
+#        refusant au-delà de 2000).
+#        Défaut : 1500
+
+ArchBot.PickupRadius = 1500
+
+#    ArchBot.TargetLevelBelow, ArchBot.TargetLevelAbove
+#        Fenêtre de niveau des monstres qu'un bot autonome choisit : de son
+#        niveau - Below à son niveau + Above. Il riposte toujours à qui le frappe.
+#        Défaut : 6 et 2
+
+ArchBot.TargetLevelBelow = 6
+ArchBot.TargetLevelAbove = 2
+
+#    ArchBot.FleeHpPercent
+#        Sous ce pourcentage de PV, un bot attaqué fuit vers son refuge s'il n'a
+#        plus de potion, s'il a plusieurs agresseurs ou si l'un est bien plus haut
+#        que lui (0 : jamais).
+#        Défaut : 20
+
+ArchBot.FleeHpPercent = 20
+
+#    ArchBot.RestHpPercent, ArchBot.RestUntilPercent
+#        Hors combat, un bot se repose sous RestHpPercent % de PV et reprend à
+#        RestUntilPercent % (régénération du serveur).
+#        Défaut : 45 et 85
+
+ArchBot.RestHpPercent = 45
+ArchBot.RestUntilPercent = 85
+
+#    ArchBot.PotionHpPercent, ArchBot.PotionMpPercent
+#        En combat, un bot boit une potion de vie sous ce pourcentage de PV, et
+#        une potion de mana sous ce pourcentage de PM (potions de son inventaire :
+#        équipement de départ, butin ; rien n'est créé).
+#        Défaut : 50 et 20
+
+ArchBot.PotionHpPercent = 50
+ArchBot.PotionMpPercent = 20
+
+#    ArchBot.EngageHpPercent
+#        Un bot autonome n'engage un nouveau monstre qu'au-dessus de ce
+#        pourcentage de PV.
+#        Défaut : 60
+
+ArchBot.EngageHpPercent = 60
+
+#    ArchBot.ResurrectDelaySeconds
+#        Attente d'un bot mort avant de ressusciter au village (0 à 3600).
+#        Défaut : 8
+
+ArchBot.ResurrectDelaySeconds = 8
+
+#    ArchBot.FollowDistance
+#        Distance de suivi par défaut d'un compagnon (100 à 3000) ; « follow 500 »
+#        la change pour lui.
+#        Défaut : 300
+
+ArchBot.FollowDistance = 300
+
+#    ArchBot.Chatter
+#        1 = les bots répondent aux ordres et aux chuchotements.
+#        Défaut : 1
+
+ArchBot.Chatter = 1
+
+###############################################################################
+# 4. PERFORMANCES
+#
+#    ArchBot.AIUpdateIntervalMs
+#        Cadence de la boucle d'IA (100 à 10000 ms).
+#        Défaut : 500
+
+ArchBot.AIUpdateIntervalMs = 500
+
+#    ArchBot.BotsPerTick
+#        Bots qui pensent au plus par tour ; au-delà, les bots sont répartis sur
+#        plusieurs tours (1 à 5000).
+#        Défaut : 50
+
+ArchBot.BotsPerTick = 50
+
+#    ArchBot.FarFromPlayersUnits, ArchBot.FarTickDivisor
+#        Un bot sans vrai joueur à moins de FarFromPlayersUnits ne pense qu'un
+#        tour sur FarTickDivisor (1 : toujours).
+#        Défaut : 30000 et 4
+
+ArchBot.FarFromPlayersUnits = 30000
+ArchBot.FarTickDivisor = 4
+
+###############################################################################
+# 5. ADMINISTRATION
+#
+#    ArchBot.CommandLevel
+#        Niveau MJ requis pour /bot stats, /bot spawn, /bot despawn et
+#        /bot population (0 : commandes désactivées). /bot hire et les ordres aux
+#        compagnons sont ouverts à tous les joueurs.
+#        Défaut : 2
+
+ArchBot.CommandLevel = 2
+
+#    ArchBot.Debug
+#        1 = chaque action des bots dans le journal (ARCHCORE_TRACE=1 pour le
+#        niveau DEBUG) et un rapport de métriques tous les 20 tours.
+#        Défaut : 0
+
+ArchBot.Debug = 0

@@ -1,0 +1,339 @@
+diff --git a/.gitignore b/.gitignore
+index 0b712fb..862f205 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -25,3 +25,6 @@ target/
+ config/auth.conf
+ config/world.conf
+ config/*/
++
++# Modules facultatifs clonés à part (ArchBot…) / optional modules cloned apart
++/modules/
+diff --git a/Cargo.lock b/Cargo.lock
+index 65a1a6a..8b5f7cb 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -32,11 +32,19 @@ version = "1.0.104"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+ 
++[[package]]
++name = "archbot"
++version = "0.1.0"
++dependencies = [
++ "rand",
++]
++
+ [[package]]
+ name = "archcore"
+ version = "0.2.0"
+ dependencies = [
+  "anyhow",
++ "archbot",
+  "archcore-net",
+  "async-trait",
+  "chrono",
+diff --git a/crates/archcore/Cargo.toml b/crates/archcore/Cargo.toml
+index 1a5907f..cbf7493 100644
+--- a/crates/archcore/Cargo.toml
++++ b/crates/archcore/Cargo.toml
+@@ -12,8 +12,16 @@ repository.workspace = true
+ name = "archcore"
+ path = "src/main.rs"
+ 
++[features]
++# ArchBot : bots autonomes et compagnons (module dans modules/ArchBot, voir son README). Retirer la feature des
++# défauts, ou construire avec --no-default-features, pour un serveur sans bots.
++default = ["archbot"]
++archbot = ["dep:archbot"]
++
+ [dependencies]
+ archcore-net.workspace = true
++# Moteur d'ArchBot (dépôt BlaMacfly/ArchBot cloné dans modules/ArchBot).
++archbot = { path = "../../modules/ArchBot", optional = true }
+ anyhow.workspace = true
+ tokio.workspace = true
+ async-trait.workspace = true
+diff --git a/crates/archcore/src/login.rs b/crates/archcore/src/login.rs
+index 099d309..5e45dbd 100644
+--- a/crates/archcore/src/login.rs
++++ b/crates/archcore/src/login.rs
+@@ -484,8 +484,15 @@ impl LoginConn {
+     /// les objets de `Item1`…`Item4` (`TID` ou `TID;quantité`) dans le premier sac, en piles limitées
+     /// à la taille de pile de l'objet.
+     async fn give_starting_items(&self, character_id: u32, tid: u32) -> anyhow::Result<()> {
++        give_starting_items(&self.svc.db, character_id, tid).await
++    }
++}
++
++/// Équipement de départ du modèle `tid` donné au personnage `character_id` (voir `LoginConn::give_starting_items`) ;
++/// sert aussi aux personnages créés par le serveur (ArchBot).
++pub(crate) async fn give_starting_items(db: &Databases, character_id: u32, tid: u32) -> anyhow::Result<()> {
++    {
+         use crate::world::items::{stored_status, EquipData, INSERT_ITEM, INVENTORY};
+-        let db = &self.svc.db;
+         let Some(row) = db.world.first("SELECT data FROM character_data_table WHERE tid = ?", (tid,)).await? else {
+             return Ok(());
+         };
+@@ -522,7 +529,9 @@ impl LoginConn {
+         info!("[login] équipement de départ du personnage {character_id} : {given:?}");
+         Ok(())
+     }
++}
+ 
++impl LoginConn {
+     async fn delete_char(&mut self, s: &SessionHandle, p: &Packet) -> anyhow::Result<()> {
+         if !self.require_account(s) {
+             return Ok(());
+diff --git a/crates/archcore/src/main.rs b/crates/archcore/src/main.rs
+index 13300f2..0933461 100644
+--- a/crates/archcore/src/main.rs
++++ b/crates/archcore/src/main.rs
+@@ -34,6 +34,13 @@ mod soap;
+ mod tools;
+ mod world;
+ 
++/// ArchBot : personnages pilotés par le serveur (bots autonomes et compagnons). Module facultatif, dont le code
++/// vit dans le dépôt ArchBot cloné dans `modules/ArchBot` (voir son README) et se compile ici avec la feature
++/// `archbot` ; sans le module, le serveur se construit et tourne comme avant.
++#[cfg(feature = "archbot")]
++#[path = "../../../modules/ArchBot/archcore/mod.rs"]
++mod archbot;
++
+ const USAGE: &str = "usage : archcore [login|world|all] | config | db-init | db-check | import | content | decrypt | i18n | sim | re (voir le wiki, page Outils)";
+ 
+ #[tokio::main]
+diff --git a/crates/archcore/src/net.rs b/crates/archcore/src/net.rs
+index e289eee..a47091b 100644
+--- a/crates/archcore/src/net.rs
++++ b/crates/archcore/src/net.rs
+@@ -117,6 +117,8 @@ struct SessionInner {
+     closed: AtomicBool,
+     /// Extensions ArchRust négociées sur cette connexion (`None` : client d'origine).
+     ext: Mutex<Option<crate::ext::Agreement>>,
++    /// Session détachée : aucun client derrière (bots d'ArchBot) ; tout envoi est sans effet.
++    detached: bool,
+ }
+ 
+ /// Poignée vers une connexion : envoi de paquets (chiffrés une fois le handshake terminé), fermeture.
+@@ -124,6 +126,29 @@ struct SessionInner {
+ pub struct SessionHandle(Arc<SessionInner>);
+ 
+ impl SessionHandle {
++    /// Session sans connexion TCP, pour un personnage piloté par le serveur (bots d'ArchBot) : un identifiant
++    /// de session ordinaire, aucun chiffrement, et les paquets qu'on lui envoie sont ignorés sans être construits
++    /// plus loin que l'appel. Elle n'est jamais « fermée » : c'est l'hôte du bot qui le retire du monde.
++    pub fn detached(server: &'static str) -> SessionHandle {
++        let (tx, _rx) = mpsc::unbounded_channel::<Out>();
++        SessionHandle(Arc::new(SessionInner {
++            id: NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed),
++            server,
++            remote: "détachée".into(),
++            ip: String::new(),
++            crypto: Mutex::new(CryptoSession::default()),
++            tx,
++            closed: AtomicBool::new(false),
++            ext: Mutex::new(None),
++            detached: true,
++        }))
++    }
++
++    /// Vrai pour une session détachée (voir [`SessionHandle::detached`]).
++    pub fn is_detached(&self) -> bool {
++        self.0.detached
++    }
++
+     pub fn id(&self) -> u32 {
+         self.0.id
+     }
+@@ -168,11 +193,14 @@ impl SessionHandle {
+ 
+     /// Construit et envoie un paquet principal selon un schéma.
+     pub fn send(&self, schema: &Schema, fields: Fields) {
++        if self.0.detached {
++            return;
++        }
+         self.send_raw(build_packet(schema, &fields));
+     }
+ 
+     fn send_plain(&self, plain: Vec<u8>, encrypt: bool) {
+-        if self.is_closed() {
++        if self.0.detached || self.is_closed() {
+             return;
+         }
+         if self.0.server == "world" {
+@@ -251,6 +279,7 @@ async fn run_session(name: &'static str, socket: TcpStream, remote: String, ip:
+         tx,
+         closed: AtomicBool::new(false),
+         ext: Mutex::new(None),
++        detached: false,
+     }));
+     let id = session.id();
+     info!("[{name}] #{id} connecté depuis {}", session.0.remote);
+diff --git a/crates/archcore/src/server.rs b/crates/archcore/src/server.rs
+index 1cf2011..8d51463 100644
+--- a/crates/archcore/src/server.rs
++++ b/crates/archcore/src/server.rs
+@@ -102,12 +102,18 @@ pub async fn run(mode: &str) -> anyhow::Result<()> {
+         if config.world.soap.enabled {
+             crate::soap::serve(&config.world.soap, Arc::new(crate::world::console::SoapBackend(w.clone()))).await?;
+         }
++        // ArchBot : personnages pilotés par le serveur (module facultatif, config/archbot.conf).
++        #[cfg(feature = "archbot")]
++        crate::archbot::start(w.clone()).await?;
+     }
+ 
+     // Serveur prêt : la mesure des requêtes lentes commence (le chargement du monde n'est pas compté).
+     crate::db::set_slow_query_ms(config.database.slow_query_ms);
+     tokio::signal::ctrl_c().await?;
+     info!("arrêt…");
++    // ArchBot : les bots quittent le monde (positions et progression enregistrées) avant la fermeture des bases.
++    #[cfg(feature = "archbot")]
++    crate::archbot::shutdown().await;
+     db.close().await;
+     Ok(())
+ }
+diff --git a/crates/archcore/src/tools/sim.rs b/crates/archcore/src/tools/sim.rs
+index 60e10fe..2b52dd0 100644
+--- a/crates/archcore/src/tools/sim.rs
++++ b/crates/archcore/src/tools/sim.rs
+@@ -134,6 +134,11 @@ mod usables;
+ mod title;
+ mod wanted;
+ 
++/// ArchBot : scénario `archcore sim bots` (module facultatif, dépôt ArchBot cloné dans modules/ArchBot).
++#[cfg(feature = "archbot")]
++#[path = "../../../../modules/ArchBot/archcore/sim_bots.rs"]
++mod bots;
++
+ /// Valeur facultative affichée sans « Some(…) ».
+ fn o<T: std::fmt::Display>(v: Option<T>) -> String {
+     v.map(|x| x.to_string()).unwrap_or_else(|| "-".into())
+@@ -143,6 +148,8 @@ pub async fn run(args: &[String]) -> anyhow::Result<()> {
+     let a = |i: usize, d: &str| args.get(i).cloned().unwrap_or_else(|| d.to_string());
+     match args.first().map(String::as_str) {
+         Some("client") => client(&a(1, "test"), &a(2, "test"), &a(3, "Testeur"), args.get(4..).unwrap_or_default()).await,
++        #[cfg(feature = "archbot")]
++        Some("bots") => Box::pin(bots::run(&a(1, "gmtest"), &a(2, "gmtest"), &a(3, "GmTest"), args.get(4..).unwrap_or_default())).await,
+         Some("move") => movement(&a(1, "gmtest"), &a(2, "gmtest"), &a(3, "GmTest"), &a(4, "simb"), &a(5, "simb"), &a(6, "SimB")).await,
+         Some("shop") => shop(&a(1, "sima"), &a(2, "sima"), &a(3, "SimA")).await,
+         Some("addon") => {
+diff --git a/crates/archcore/src/world/chat.rs b/crates/archcore/src/world/chat.rs
+index 8a80f2b..837ed87 100644
+--- a/crates/archcore/src/world/chat.rs
++++ b/crates/archcore/src/world/chat.rs
+@@ -191,6 +191,12 @@ pub async fn on_chatting(world: &Arc<World>, st: &mut WorldState, sid: u32, p: &
+     let (cid, name) = (player.ch.id, player.ch.name.clone());
+     info!("[chat] {name} (type {kind}) : {full}");
+ 
++    // ArchBot : commandes « /bot … », chuchotements et messages de groupe adressés aux bots (module facultatif).
++    #[cfg(feature = "archbot")]
++    if crate::archbot::chat::on_chat(world, st, sid, kind, &full, p.text(5).as_deref()).await? {
++        return Ok(());
++    }
++
+     // Préfixes d'Archonia (groupe, guilde, cris) avant les commandes MJ ; jamais dans un chuchotement.
+     let prefix = if kind == chat_type::WHISPER { None } else { split_prefix(&full) };
+     let text = prefix.map(|(_, rest)| rest.to_string()).unwrap_or_else(|| full.clone());
+diff --git a/crates/archcore/src/world/combat.rs b/crates/archcore/src/world/combat.rs
+index 9af90a0..6560935 100644
+--- a/crates/archcore/src/world/combat.rs
++++ b/crates/archcore/src/world/combat.rs
+@@ -289,6 +289,13 @@ pub fn dist2d(a: Vec3, b: Vec3) -> f64 {
+ pub fn on_action(ctx: &WorldCtx, st: &mut WorldState, sid: u32, p: &Packet) {
+     let target = p.int(1).unwrap_or(0) as u32;
+     let forced = p.int(6).unwrap_or(0) != 0;
++    start_attack(ctx, st, sid, target, forced);
++}
++
++/// Le joueur `sid` prend `target` pour cible, avec les règles du paquet du client (monstre vivant et attaquable,
++/// joueur permis par le combat entre joueurs, cadence de l'anti-triche). Sert aussi aux personnages pilotés par
++/// le serveur (ArchBot).
++pub(crate) fn start_attack(ctx: &WorldCtx, st: &mut WorldState, sid: u32, target: u32, forced: bool) {
+     // Forme d'animal (Type 8, morph.rs) : n'attaque personne.
+     if super::morph::harmless(st, sid) {
+         debug!("[combat] #{sid} : pas d'attaque sous une forme d'animal");
+diff --git a/crates/archcore/src/world/mod.rs b/crates/archcore/src/world/mod.rs
+index 7f162bb..ca72e1f 100644
+--- a/crates/archcore/src/world/mod.rs
++++ b/crates/archcore/src/world/mod.rs
+@@ -616,7 +616,7 @@ impl Connection for WorldConn {
+ }
+ 
+ /// Retire un joueur du monde : échange annulé, groupe quitté, position enregistrée.
+-pub(super) async fn remove_player(ctx: &WorldCtx, st: &mut WorldState, sid: u32) {
++pub(crate) async fn remove_player(ctx: &WorldCtx, st: &mut WorldState, sid: u32) {
+     // Un échange en cours est annulé : les objets n'ont pas quitté les inventaires.
+     trade::cancel(st, sid);
+     // Le groupe perd ce membre (et se dissout s'il ne reste qu'un joueur).
+@@ -681,13 +681,22 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
+         s.close();
+         return Ok(());
+     };
+-    let mut ch = CharacterRow::from_row(&row);
++    let gm_level: i64 = col(&acc, "gm_level");
++    if !admit(ctx, st, s, account, gm_level, &row).await? {
++        s.close();
++    }
++    Ok(())
++}
++
++/// Charge un personnage déjà authentifié (sa ligne `characters`) dans le monde, sur la session `s`, prêt pour
++/// `ENTER_WORLD`. Rend faux si son modèle est inconnu. Sert à l'entrée ordinaire (`game_enter`) et aux
++/// personnages pilotés par le serveur (ArchBot), qui n'ont ni clé d'authentification ni connexion.
++pub(crate) async fn admit(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, account: Account, gm_level: i64, row: &mysql_async::Row) -> anyhow::Result<bool> {
++    let mut ch = CharacterRow::from_row(row);
+     let Some(tpl) = ctx.templates.get(ch.template_id) else {
+         crate::error!("[world] template {} inconnu", ch.template_id);
+-        s.close();
+-        return Ok(());
++        return Ok(false);
+     };
+-    let gm_level: i64 = col(&acc, "gm_level");
+     let mut inventory = Inventory::load(&ctx.db, ch.id).await?;
+     // Objets Cash encore dans l'inventaire ordinaire : rangés dans l'inventaire Cash (items.rs).
+     let sorted = inventory.sort_cash(&ctx.db, &ctx.catalog).await?;
+@@ -819,10 +828,11 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
+         },
+     );
+     st.by_cid.insert(cid, s.id());
+-    Ok(())
++    Ok(true)
+ }
+ 
+-fn enter_world(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle) {
++/// `ENTER_WORLD` : le personnage chargé par `admit` entre en jeu (paquets d'entrée, vue, présence…).
++pub(crate) fn enter_world(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle) {
+     let sid = s.id();
+     let Some(p) = st.players.get(&sid) else {
+         warn!("[world] #{sid} ENTER_WORLD sans personnage");
+diff --git a/crates/archcore/src/world/skills.rs b/crates/archcore/src/world/skills.rs
+index 836bfd2..3d37418 100644
+--- a/crates/archcore/src/world/skills.rs
++++ b/crates/archcore/src/world/skills.rs
+@@ -661,6 +661,11 @@ impl SkillCatalog {
+         self.skills.get(&tid)
+     }
+ 
++    /// Toutes les compétences du catalogue (ordre quelconque).
++    pub fn all(&self) -> impl Iterator<Item = &SkillTemplate> {
++        self.skills.values()
++    }
++
+     /// Compétences de l'ArchLord (`skill_type` 9), par TID croissant.
+     pub fn archlord_skills(&self) -> Vec<u32> {
+         let mut v: Vec<u32> = self.skills.values().filter(|t| t.archlord_only()).map(|t| t.tid).collect();
+@@ -1024,6 +1029,13 @@ fn request_cast(ctx: &WorldCtx, st: &mut WorldState, sid: u32, p: &Packet) {
+         .and_then(|b| b.int(1))
+         .unwrap_or(0) as u32;
+     let forced = action.as_ref().and_then(|a| a.int(4)).unwrap_or(0) != 0;
++    start_cast(ctx, st, sid, skill_id, target, forced)
++}
++
++/// Lance la compétence `skill_id` (identifiant de session) du joueur `sid` sur `target` (CID d'un monstre, d'un
++/// joueur, ou le sien), avec tous les contrôles du paquet du client. Sert aussi aux personnages pilotés par le
++/// serveur (ArchBot).
++pub(crate) fn start_cast(ctx: &WorldCtx, st: &mut WorldState, sid: u32, skill_id: u32, target: u32, forced: bool) {
+     let now = Instant::now();
+     let Some(player) = st.players.get(&sid) else { return };
+     if !player.in_game || player.dead {

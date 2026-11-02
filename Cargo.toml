@@ -1,0 +1,25 @@
+[package]
+name = "archbot"
+description = "ArchBot: PlayerBots engine for the ArchCore ArchLord server emulator (autonomous and companion bots)"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+authors = ["BlaMacfly"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/BlaMacfly/ArchBot"
+readme = "README.md"
+keywords = ["archlord", "mmorpg", "bots", "ai", "archcore"]
+categories = ["game-development", "simulation"]
+# Le dossier `archcore/` contient l'adaptateur compilé à l'intérieur de la crate archcore (voir README) :
+# il n'appartient pas à cette bibliothèque.
+exclude = ["archcore/", "docs/", "scripts/", "config/", "_ref/"]
+
+[lib]
+name = "archbot"
+path = "src/lib.rs"
+
+[dependencies]
+# Même version que l'espace de travail ArchCore, pour ne pas dupliquer la crate.
+rand = "0.8"
+
+[dev-dependencies]
