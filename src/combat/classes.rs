@@ -94,7 +94,7 @@ mod tests {
         // Soin.
         let heal = SkillView { heals: true, offensive: false, on_self: true, ..skill(9, 1, 10, 0.0) };
         let hurt = SelfView { hp: 30, hp_max: 100, ..me.clone() };
-        assert_eq!(pick_heal_skill(&hurt, &[heal.clone()]).map(|s| s.id), Some(9));
+        assert_eq!(pick_heal_skill(&hurt, std::slice::from_ref(&heal)).map(|s| s.id), Some(9));
         assert_eq!(pick_heal_skill(&me, &[heal]), None, "PV pleins");
     }
 }

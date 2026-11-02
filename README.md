@@ -62,7 +62,7 @@ tests/          engine scenarios in a simulated world (movement, obstacles, comb
 | Loot pickup, equipment upgrades, skill learning with real skill points and mastery trees | ✅ live server |
 | Companion: hire, party invitation, follow in formation, stay/come, defensive/aggressive, chat orders | ✅ verified with `archcore sim bots` |
 | Persistence (characters kept, resumed at next start), rotation, GM commands, metrics | ✅ live server |
-| Load: 1 → 100 bots | 🟡 measured on a test server, see docs/TESTS.md |
+| Load: 1 → 100 bots on a live test server | ✅ 100 bots: 9.6 ms per AI tick on average (max 22.8 ms), process under 0.25 % of a 16-core machine, +0.7 MB — see docs/TESTS.md |
 | Rendering in the real ArchLord client | ⚪ not verified yet (only what the server sends to a simulated client) |
 | Shopping at NPCs, quests, PvP, mounts, guilds for bots | ❌ not implemented (see docs/LIMITATIONS.md) |
 

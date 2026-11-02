@@ -43,14 +43,40 @@ Giant Bat, Green Worm), montées de niveau (1 → 3, 3 → 4), 58 ramassages (or
 compétences apprises (Invincible State…), aucun avertissement ni erreur du module ; tours d'IA de 0,1 ms
 (dernier) à 14 ms (maximum, au démarrage) pour 5 à 9 bots.
 
-## 3. Test de charge (Test 7) — **NOT RUN**
+## 3. Test de charge (Test 7) — **PASS** (mesure réelle, serveur de test)
 
-Le scénario `archcore sim bots gmtest gmtest GmTest load 1,10,25,50,100` et l'échantillonneur CPU/mémoire
-(`Get-Process archcore`) sont écrits mais le relevé n'a pas été mené à terme (lancement avec les arguments
-dans le mauvais ordre, puis arrêt de la session). Aucun chiffre de charge n'est donc avancé au-delà de la mesure
-du moteur seul (§ 1). À faire : lancer la commande ci-dessus avec un `archbot.conf` à `MaxBots = 150`,
-`FarTickDivisor = 1`, et relever `/bot stats` (moyenne, maximum) à chaque palier avec le CPU et la mémoire du
-processus.
+Commande : `archcore sim bots gmtest gmtest GmTest load 1,10,25,50,100` ; serveur release, bases
+`archcore_test_*`, `archbot.conf` : `MaxBots = 150`, `SpawnIntervalMs = 500`, `BotsPerTick = 50`,
+`AIUpdateIntervalMs = 500`, `FarTickDivisor = 1` (tous les bots pensent, aucun vrai joueur n'étant requis),
+`Debug = 1`. À chaque palier : population fixée, attente des entrées, métriques remises à zéro, 60 s de jeu,
+relevé `/bot stats`. CPU et mémoire du processus `archcore.exe` relevés toutes les 10 s par `Get-Process`
+(machine : Windows 11, 16 processeurs logiques ; le serveur partage la machine avec MariaDB).
+
+| Bots | Tours d'IA en 60 s | Durée d'un tour : moyenne / EMA / maximum | Pensées | Monstres tués | CPU du processus (% des 16 cœurs) | Mémoire (Mo) |
+|---|---|---|---|---|---|---|
+| 1 | 118 | 0,27 / 0,19 / 3,25 ms | 118 | 0 | 0,03–0,08 | 184,5 |
+| 10 | 118 | 2,56 / 2,42 / 15,2 ms | 1180 | 13 | 0,02–0,09 | 184,6 |
+| 25 | 117 | 6,98 / 5,17 / **331 ms** | 2925 | 26 | 0,04–0,14 | 184,6 |
+| 50 | 118 | 7,36 / 8,70 / 22,3 ms | 5900 | 54 | 0,08–0,16 | 184,6–184,9 |
+| 100 | 117 | 9,56 / 14,1 / 22,8 ms | 5850 | 84 | 0,08–0,24 | 185,2 |
+
+Lecture :
+
+- Un tour d'IA dure **moins de 10 ms en moyenne avec 100 bots** (verrou du monde tenu d'autant, toutes les
+  500 ms) ; avec `BotsPerTick = 50`, chaque bot pense une fois par seconde à 100 bots (5850 pensées par
+  minute), toutes les 500 ms en dessous de 50.
+- Le maximum de 331 ms au palier 25 coïncide avec la seule « requête lente » du journal (`UPDATE
+  character_items`, 308 ms) : une attente de MariaDB sous le verrou du monde, propre au modèle d'ArchCore
+  (les écritures ont lieu sous le verrou), pas un calcul de l'IA. Les autres maxima restent sous 23 ms.
+- CPU : le processus entier (serveur monde, 100 bots qui combattent, écritures SQL) reste sous 0,25 % de
+  la machine, soit environ 3 à 4 % d'un cœur. Mémoire : +0,7 Mo pour 100 bots (184,5 → 185,2 Mo).
+- Aucune erreur du module, aucun bot bloqué dans un état invalide (états observés au palier 100 : 16 idle,
+  50 exploring, 24 combat, 1 fleeing, 2 recovering, 7 looting), 227 ramassages et 84 monstres tués en une
+  minute. Aucune mort de bot pendant la mesure (niveaux 1 à 5 face à des monstres de niveau proche).
+
+Ce qui n'est **pas** mesuré : l'effet de vrais clients connectés en nombre (le trafic sortant vers les
+clients qui voient les bots), un serveur plus modeste qu'un poste de bureau, des bots de haut niveau avec de
+nombreuses compétences, plus de 100 bots.
 
 ## 4. Tests en jeu (client ArchLord réel) — **NOT RUN**
 
