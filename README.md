@@ -92,7 +92,7 @@ tests/          engine scenarios in a simulated world (movement, obstacles, comb
 
 ### Requirements
 
-- ArchCore at the revision the patch was written for (branch `Core`, commit `c9a3c6d`, 2 November 2026; the
+- ArchCore at the revision the patch was written for (branch `Core`, commit `6912f16`, 8 November 2026; the
   same hooks are also on ArchCore's `archbot` branch). On a newer revision the patch may need a manual
   touch-up: the changes are small and listed one by one in [docs/ARCHCORE-CHANGES.md](docs/ARCHCORE-CHANGES.md).
 - Rust 1.85+, MariaDB, and ArchCore's databases initialised (`archcore db-init`, `archcore import`).
@@ -238,7 +238,7 @@ tests/          scénarios du moteur dans un monde simulé (déplacement, obstac
 
 ### Prérequis
 
-- ArchCore à la révision du patch (branche `Core`, commit `c9a3c6d`, 2 novembre 2026 ; les mêmes points
+- ArchCore à la révision du patch (branche `Core`, commit `6912f16`, 8 novembre 2026 ; les mêmes points
   d'accroche sont sur la branche `archbot` d'ArchCore). Sur une révision plus récente, le patch peut demander
   une retouche à la main : les modifications sont petites et listées une par une dans
   [docs/ARCHCORE-CHANGES.md](docs/ARCHCORE-CHANGES.md).

@@ -1,5 +1,25 @@
 # Journal des versions
 
+## Non publié — 2026-11-08
+
+ArchCore `6912f16` (Gacha EP8, retour de bug n° 2).
+
+- Patch ArchCore régénéré : `start_cast` reçoit aussi la position au sol (`ground`, compétences de zone lancées
+  au sol, nouvelle dans `request_cast`) ; un bot passe `None`. Contexte de `sim.rs` mis à jour (`sim bug2`).
+- Intégré à HomeRPG ArchLord 0.3.1.
+
+## Non publié — 2026-11-03
+
+ArchCore `f2ffef3` (valeurs de l'épisode 8).
+
+- Patch ArchCore régénéré pour `f2ffef3` : mêmes 12 fichiers et mêmes points d'accroche ; seul le contexte de
+  `main.rs` changeait (ligne `USAGE`, nouvelles commandes `export-client-tables` et `migrate-ep8`).
+- Adaptateur : `party::on_management` prend maintenant le contexte du monde (`WorldCtx`) ; il est passé par
+  `actions::accept_party_invitation`, `chat::direct` et `chat::hire_named`. Objets au sol : `owner` est
+  devenu `Option<u32>` (`None` : or jeté par un joueur, à tous) ; la perception suit la règle de ramassage
+  d'ArchCore.
+- Vérifié : ArchCore 343 tests et ArchBot 45 tests avec le patch ; intégré à HomeRPG ArchLord 0.3.0.
+
 ## 0.1.0 — 2026-11-02
 
 Première version.

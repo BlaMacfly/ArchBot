@@ -49,7 +49,7 @@ pub async fn execute(world: &World, st: &mut WorldState, sid: u32, action: Actio
                 pl.skills.cast = None;
             }
         }
-        Action::Cast { skill, target } => skills::start_cast(ctx, st, sid, skill, target, false),
+        Action::Cast { skill, target } => skills::start_cast(ctx, st, sid, skill, target, false, None),
         Action::Potion(kind) => {
             let Some(pl) = st.players.get(&sid) else { return Ok(()) };
             let iid = pl.inventory.items.values().find(|it| {
@@ -82,12 +82,12 @@ pub async fn execute(world: &World, st: &mut WorldState, sid: u32, action: Actio
         Action::PartyInvite(cid) => {
             let s = &schema::PARTY_MANAGEMENT;
             let p = packet(s, Fields::new(s).with(0, party::mgmt::INVITE).with(2, cid))?;
-            party::on_management(st, sid, &p);
+            party::on_management(ctx, st, sid, &p);
         }
         Action::PartyLeave => {
             let s = &schema::PARTY_MANAGEMENT;
             let p = packet(s, Fields::new(s).with(0, party::mgmt::LEAVE))?;
-            party::on_management(st, sid, &p);
+            party::on_management(ctx, st, sid, &p);
         }
         Action::Note(text) => {
             if let Some(p) = st.players.get(&sid) {
@@ -99,10 +99,10 @@ pub async fn execute(world: &World, st: &mut WorldState, sid: u32, action: Actio
 }
 
 /// Accepte une invitation de groupe reçue par le bot `sid` de la part de `inviter` (CID).
-pub fn accept_party_invitation(st: &mut WorldState, sid: u32, inviter: u32) -> anyhow::Result<()> {
+pub fn accept_party_invitation(ctx: &crate::world::WorldCtx, st: &mut WorldState, sid: u32, inviter: u32) -> anyhow::Result<()> {
     let s = &schema::PARTY_MANAGEMENT;
     let p = packet(s, Fields::new(s).with(0, party::mgmt::INVITE_ACCEPT).with(2, inviter))?;
-    party::on_management(st, sid, &p);
+    party::on_management(ctx, st, sid, &p);
     Ok(())
 }
 

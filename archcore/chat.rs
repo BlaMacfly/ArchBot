@@ -38,7 +38,7 @@ pub async fn on_chat(world: &Arc<World>, st: &mut WorldState, sid: u32, kind: i6
         if let Some(tsid) = whisper_target.and_then(|n| st.by_name(n)) {
             let mut m = sh.manager.lock().await;
             if m.is_bot(tsid) {
-                direct(st, &mut m, sid, tsid, trimmed);
+                direct(&world.ctx, st, &mut m, sid, tsid, trimmed);
                 return Ok(true);
             }
         }
@@ -59,10 +59,10 @@ pub async fn on_chat(world: &Arc<World>, st: &mut WorldState, sid: u32, kind: i6
 }
 
 /// Chuchotement d'un joueur au bot `bsid`.
-fn direct(st: &mut WorldState, m: &mut Manager, from: u32, bsid: u32, text: &str) {
+fn direct(ctx: &crate::world::WorldCtx, st: &mut WorldState, m: &mut Manager, from: u32, bsid: u32, text: &str) {
     match commands::parse(text) {
         Some(Command::Hire) => {
-            let reply = hire_named(st, m, from, bsid);
+            let reply = hire_named(ctx, st, m, from, bsid);
             whisper(st, bsid, from, &reply);
         }
         Some(Command::Dismiss) => {
@@ -96,7 +96,7 @@ fn apply_command(st: &mut WorldState, m: &mut Manager, from: u32, bsid: u32, cmd
 }
 
 /// `bsid` devient le compagnon de `from` (s'il est libre et si les compagnons sont permis).
-fn hire_named(st: &mut WorldState, m: &mut Manager, from: u32, bsid: u32) -> String {
+fn hire_named(ctx: &crate::world::WorldCtx, st: &mut WorldState, m: &mut Manager, from: u32, bsid: u32) -> String {
     if !m.cfg.companions {
         return "Les compagnons sont désactivés sur ce serveur.".into();
     }
@@ -122,7 +122,7 @@ fn hire_named(st: &mut WorldState, m: &mut Manager, from: u32, bsid: u32) -> Str
     // Groupe : le bot invite son maître (le client affiche l'invitation), s'il n'est pas déjà de son groupe.
     if m.cfg.allow_party && st.players.get(&bsid).is_some_and(|b| !st.parties.same(b.ch.id, me)) {
         if let Ok(p) = packet_invite(me) {
-            crate::world::party::on_management(st, bsid, &p);
+            crate::world::party::on_management(ctx, st, bsid, &p);
         }
     }
     "À vos ordres ! Dites « help » pour mes commandes.".into()
@@ -219,7 +219,7 @@ async fn slash(world: &Arc<World>, st: &mut WorldState, m: &mut Manager, sid: u3
                 }
             };
             if let Some(bsid) = bsid {
-                let reply = hire_named(st, m, sid, bsid);
+                let reply = hire_named(&world.ctx, st, m, sid, bsid);
                 let bot_name = m.bots.get(&bsid).map(|e| e.name.clone()).unwrap_or_default();
                 send_system(st, sid, &format!("{bot_name} : {reply}"));
             }

@@ -15,7 +15,7 @@
   connaissent pas les zones par niveau. Un bot de haut niveau reste près de son village.
 - **Un personnage au modèle 1724 (Scion)** est signalé par `archcore db-check` comme « modèle inconnu »
   (table `character_template`) : limitation du contrôle d'ArchCore, le modèle est bien jouable.
-- **Patch d'ArchCore** : écrit pour le commit `c9a3c6d` de la branche `Core` ; à rejouer à la main si le
+- **Patch d'ArchCore** : écrit pour le commit `6912f16` de la branche `Core` ; à rejouer à la main si le
   serveur évolue.
 - Les bots parlent français (réponses aux ordres) ; pas de localisation.
 

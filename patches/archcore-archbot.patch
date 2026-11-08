@@ -1,8 +1,8 @@
 diff --git a/.gitignore b/.gitignore
-index 0b712fb..862f205 100644
+index 7e0d828..75bf9c3 100644
 --- a/.gitignore
 +++ b/.gitignore
-@@ -25,3 +25,6 @@ target/
+@@ -23,3 +23,6 @@ target/
  config/auth.conf
  config/world.conf
  config/*/
@@ -86,10 +86,10 @@ index 099d309..5e45dbd 100644
          if !self.require_account(s) {
              return Ok(());
 diff --git a/crates/archcore/src/main.rs b/crates/archcore/src/main.rs
-index 13300f2..0933461 100644
+index 8387b7a..1c1db69 100644
 --- a/crates/archcore/src/main.rs
 +++ b/crates/archcore/src/main.rs
-@@ -34,6 +34,13 @@ mod soap;
+@@ -36,6 +36,13 @@ mod soap;
  mod tools;
  mod world;
  
@@ -100,7 +100,7 @@ index 13300f2..0933461 100644
 +#[path = "../../../modules/ArchBot/archcore/mod.rs"]
 +mod archbot;
 +
- const USAGE: &str = "usage : archcore [login|world|all] | config | db-init | db-check | import | content | decrypt | i18n | sim | re (voir le wiki, page Outils)";
+ const USAGE: &str = "usage : archcore [login|world|all] | config | db-init | db-check | import | content | export-client-tables | migrate-ep8 | decrypt | i18n | sim | re (voir le wiki, page Outils)";
  
  #[tokio::main]
 diff --git a/crates/archcore/src/net.rs b/crates/archcore/src/net.rs
@@ -171,10 +171,10 @@ index e289eee..a47091b 100644
      let id = session.id();
      info!("[{name}] #{id} connecté depuis {}", session.0.remote);
 diff --git a/crates/archcore/src/server.rs b/crates/archcore/src/server.rs
-index 1cf2011..8d51463 100644
+index e69b3de..da06d16 100644
 --- a/crates/archcore/src/server.rs
 +++ b/crates/archcore/src/server.rs
-@@ -102,12 +102,18 @@ pub async fn run(mode: &str) -> anyhow::Result<()> {
+@@ -115,12 +115,18 @@ pub async fn run(mode: &str) -> anyhow::Result<()> {
          if config.world.soap.enabled {
              crate::soap::serve(&config.world.soap, Arc::new(crate::world::console::SoapBackend(w.clone()))).await?;
          }
@@ -194,10 +194,10 @@ index 1cf2011..8d51463 100644
      Ok(())
  }
 diff --git a/crates/archcore/src/tools/sim.rs b/crates/archcore/src/tools/sim.rs
-index 60e10fe..2b52dd0 100644
+index 54d4a9f..b348974 100644
 --- a/crates/archcore/src/tools/sim.rs
 +++ b/crates/archcore/src/tools/sim.rs
-@@ -134,6 +134,11 @@ mod usables;
+@@ -146,6 +146,11 @@ mod usables;
  mod title;
  mod wanted;
  
@@ -209,20 +209,20 @@ index 60e10fe..2b52dd0 100644
  /// Valeur facultative affichée sans « Some(…) ».
  fn o<T: std::fmt::Display>(v: Option<T>) -> String {
      v.map(|x| x.to_string()).unwrap_or_else(|| "-".into())
-@@ -143,6 +148,8 @@ pub async fn run(args: &[String]) -> anyhow::Result<()> {
+@@ -155,6 +160,8 @@ pub async fn run(args: &[String]) -> anyhow::Result<()> {
      let a = |i: usize, d: &str| args.get(i).cloned().unwrap_or_else(|| d.to_string());
      match args.first().map(String::as_str) {
          Some("client") => client(&a(1, "test"), &a(2, "test"), &a(3, "Testeur"), args.get(4..).unwrap_or_default()).await,
 +        #[cfg(feature = "archbot")]
 +        Some("bots") => Box::pin(bots::run(&a(1, "gmtest"), &a(2, "gmtest"), &a(3, "GmTest"), args.get(4..).unwrap_or_default())).await,
+         Some("bug2") => Box::pin(bug2::run(&a(1, "gmtest"), &a(2, "gmtest"), &a(3, "GmTest"))).await,
+         Some("bug2cash") => Box::pin(bug2::cash(&a(1, "gmtest"), &a(2, "gmtest"), &a(3, "GmTest"))).await,
          Some("move") => movement(&a(1, "gmtest"), &a(2, "gmtest"), &a(3, "GmTest"), &a(4, "simb"), &a(5, "simb"), &a(6, "SimB")).await,
-         Some("shop") => shop(&a(1, "sima"), &a(2, "sima"), &a(3, "SimA")).await,
-         Some("addon") => {
 diff --git a/crates/archcore/src/world/chat.rs b/crates/archcore/src/world/chat.rs
-index 8a80f2b..837ed87 100644
+index f6d6def..25a1dc7 100644
 --- a/crates/archcore/src/world/chat.rs
 +++ b/crates/archcore/src/world/chat.rs
-@@ -191,6 +191,12 @@ pub async fn on_chatting(world: &Arc<World>, st: &mut WorldState, sid: u32, p: &
+@@ -229,6 +229,12 @@ pub async fn on_chatting(world: &Arc<World>, st: &mut WorldState, sid: u32, p: &
      let (cid, name) = (player.ch.id, player.ch.name.clone());
      info!("[chat] {name} (type {kind}) : {full}");
  
@@ -236,10 +236,10 @@ index 8a80f2b..837ed87 100644
      let prefix = if kind == chat_type::WHISPER { None } else { split_prefix(&full) };
      let text = prefix.map(|(_, rest)| rest.to_string()).unwrap_or_else(|| full.clone());
 diff --git a/crates/archcore/src/world/combat.rs b/crates/archcore/src/world/combat.rs
-index 9af90a0..6560935 100644
+index 1d9fa6a..1a351f2 100644
 --- a/crates/archcore/src/world/combat.rs
 +++ b/crates/archcore/src/world/combat.rs
-@@ -289,6 +289,13 @@ pub fn dist2d(a: Vec3, b: Vec3) -> f64 {
+@@ -385,6 +385,13 @@ pub fn dist2d(a: Vec3, b: Vec3) -> f64 {
  pub fn on_action(ctx: &WorldCtx, st: &mut WorldState, sid: u32, p: &Packet) {
      let target = p.int(1).unwrap_or(0) as u32;
      let forced = p.int(6).unwrap_or(0) != 0;
@@ -254,10 +254,10 @@ index 9af90a0..6560935 100644
      if super::morph::harmless(st, sid) {
          debug!("[combat] #{sid} : pas d'attaque sous une forme d'animal");
 diff --git a/crates/archcore/src/world/mod.rs b/crates/archcore/src/world/mod.rs
-index 7f162bb..ca72e1f 100644
+index ddd5e8b..a351de3 100644
 --- a/crates/archcore/src/world/mod.rs
 +++ b/crates/archcore/src/world/mod.rs
-@@ -616,7 +616,7 @@ impl Connection for WorldConn {
+@@ -648,7 +648,7 @@ impl Connection for WorldConn {
  }
  
  /// Retire un joueur du monde : échange annulé, groupe quitté, position enregistrée.
@@ -266,7 +266,7 @@ index 7f162bb..ca72e1f 100644
      // Un échange en cours est annulé : les objets n'ont pas quitté les inventaires.
      trade::cancel(st, sid);
      // Le groupe perd ce membre (et se dissout s'il ne reste qu'un joueur).
-@@ -681,13 +681,22 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
+@@ -717,13 +717,22 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
          s.close();
          return Ok(());
      };
@@ -293,7 +293,7 @@ index 7f162bb..ca72e1f 100644
      let mut inventory = Inventory::load(&ctx.db, ch.id).await?;
      // Objets Cash encore dans l'inventaire ordinaire : rangés dans l'inventaire Cash (items.rs).
      let sorted = inventory.sort_cash(&ctx.db, &ctx.catalog).await?;
-@@ -819,10 +828,11 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
+@@ -870,10 +879,11 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
          },
      );
      st.by_cid.insert(cid, s.id());
@@ -308,10 +308,10 @@ index 7f162bb..ca72e1f 100644
      let Some(p) = st.players.get(&sid) else {
          warn!("[world] #{sid} ENTER_WORLD sans personnage");
 diff --git a/crates/archcore/src/world/skills.rs b/crates/archcore/src/world/skills.rs
-index 836bfd2..3d37418 100644
+index e8d1602..1904772 100644
 --- a/crates/archcore/src/world/skills.rs
 +++ b/crates/archcore/src/world/skills.rs
-@@ -661,6 +661,11 @@ impl SkillCatalog {
+@@ -865,6 +865,11 @@ impl SkillCatalog {
          self.skills.get(&tid)
      }
  
@@ -323,17 +323,17 @@ index 836bfd2..3d37418 100644
      /// Compétences de l'ArchLord (`skill_type` 9), par TID croissant.
      pub fn archlord_skills(&self) -> Vec<u32> {
          let mut v: Vec<u32> = self.skills.values().filter(|t| t.archlord_only()).map(|t| t.tid).collect();
-@@ -1024,6 +1029,13 @@ fn request_cast(ctx: &WorldCtx, st: &mut WorldState, sid: u32, p: &Packet) {
-         .and_then(|b| b.int(1))
+@@ -1271,6 +1276,13 @@ fn request_cast(ctx: &WorldCtx, st: &mut WorldState, sid: u32, p: &Packet) {
          .unwrap_or(0) as u32;
      let forced = action.as_ref().and_then(|a| a.int(4)).unwrap_or(0) != 0;
-+    start_cast(ctx, st, sid, skill_id, target, forced)
+     let ground = action.as_ref().and_then(|a| a.vec3(3));
++    start_cast(ctx, st, sid, skill_id, target, forced, ground)
 +}
 +
 +/// Lance la compétence `skill_id` (identifiant de session) du joueur `sid` sur `target` (CID d'un monstre, d'un
-+/// joueur, ou le sien), avec tous les contrôles du paquet du client. Sert aussi aux personnages pilotés par le
-+/// serveur (ArchBot).
-+pub(crate) fn start_cast(ctx: &WorldCtx, st: &mut WorldState, sid: u32, skill_id: u32, target: u32, forced: bool) {
++/// joueur, ou le sien), au sol en `ground` pour une compétence de zone, avec tous les contrôles du paquet du client.
++/// Sert aussi aux personnages pilotés par le serveur (ArchBot).
++pub(crate) fn start_cast(ctx: &WorldCtx, st: &mut WorldState, sid: u32, skill_id: u32, target: u32, forced: bool, ground: Option<Vec3>) {
      let now = Instant::now();
      let Some(player) = st.players.get(&sid) else { return };
      if !player.in_game || player.dead {

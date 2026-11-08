@@ -1,7 +1,7 @@
 # Modifications apportées à ArchCore
 
-Le patch `patches/archcore-archbot.patch` (écrit sur la branche `Core`, commit `c9a3c6d`, 2 novembre 2026)
-touche 12 fichiers pour 121 lignes ajoutées et 9 retirées. Aucune logique de jeu n'est changée : ce sont des
+Le patch `patches/archcore-archbot.patch` (branche `Core`, commit `6912f16` du 8 novembre 2026 ; écrit sur `c9a3c6d`, adapté le 3 puis le 8 novembre)
+touche 12 fichiers pour 121 lignes ajoutées et 9 retirées (adapté à 6912f16). Aucune logique de jeu n'est changée : ce sont des
 points d'accroche, des découpages de fonctions existantes et des exports `pub(crate)`.
 
 | Fichier | Changement | Pourquoi |
@@ -11,7 +11,7 @@ points d'accroche, des découpages de fonctions existantes et des exports `pub(c
 | `crates/archcore/src/net.rs` | champ `detached` dans `SessionInner`, `SessionHandle::detached(server)`, `is_detached()`, court-circuit dans `send` et `send_plain` | un `Player` sans connexion TCP, dont les envois ne coûtent rien |
 | `crates/archcore/src/world/mod.rs` | `game_enter` découpé : la partie « charger le personnage » devient `pub(crate) async fn admit(ctx, st, s, account, gm_level, row) -> Result<bool>` ; `enter_world` et `remove_player` passent `pub(crate)` | entrer en jeu sans clé d'authentification ; sortir proprement |
 | `crates/archcore/src/world/combat.rs` | `on_action` découpé : `pub(crate) fn start_attack(ctx, st, sid, target, forced)` | prendre une cible avec les règles du paquet du client |
-| `crates/archcore/src/world/skills.rs` | `request_cast` découpé : `pub(crate) fn start_cast(ctx, st, sid, skill_id, target, forced)` ; `SkillCatalog::all()` | lancer une compétence avec tous les contrôles ; lister les compétences apprenables |
+| `crates/archcore/src/world/skills.rs` | `request_cast` découpé : `pub(crate) fn start_cast(ctx, st, sid, skill_id, target, forced, ground)` ; `SkillCatalog::all()` | lancer une compétence avec tous les contrôles ; lister les compétences apprenables |
 | `crates/archcore/src/world/chat.rs` | hook `archbot::chat::on_chat` au début de `on_chatting` (sous `cfg(feature)`) | commandes `/bot`, chuchotements et `/p` adressés aux bots |
 | `crates/archcore/src/server.rs` | `archbot::start(w.clone())` après le démarrage du monde, `archbot::shutdown()` avant la fermeture des bases | boucle d'IA ; sortie des bots à l'arrêt |
 | `crates/archcore/src/login.rs` | `give_starting_items` devient une fonction libre `pub(crate)` (la méthode l'appelle) | équipement de départ des personnages créés par le module |

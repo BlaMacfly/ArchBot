@@ -188,7 +188,7 @@ impl Manager {
             let pending: Vec<(u32, u32)> = st.parties.invitations.iter().flat_map(|(from, list)| list.iter().map(move |to| (*from, *to))).collect();
             for (from, to) in pending {
                 if let Some(bsid) = self.sid_of(to) {
-                    if let Err(e) = actions::accept_party_invitation(st, bsid, from) {
+                    if let Err(e) = actions::accept_party_invitation(&world.ctx, st, bsid, from) {
                         warn!("[archbot] invitation : {e:#}");
                     }
                 }

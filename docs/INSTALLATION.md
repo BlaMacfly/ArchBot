@@ -7,7 +7,7 @@ un petit patch ajoute à ArchCore les points d'accroche dont le module a besoin,
 ## Prérequis
 
 - ArchCore à la révision pour laquelle le patch a été écrit (voir [ARCHCORE-CHANGES.md](ARCHCORE-CHANGES.md) ;
-  branche `Core`, commit `c9a3c6d` du 2 novembre 2026). Sur une révision plus récente, `git apply` peut
+  branche `Core`, commit `6912f16` du 8 novembre 2026). Sur une révision plus récente, `git apply` peut
   demander un ajustement à la main : les modifications sont petites et décrites une par une.
 - Rust 1.85 ou plus, MariaDB, et les bases d'ArchCore initialisées (`archcore db-init`, `archcore import`),
   comme pour le serveur lui-même.

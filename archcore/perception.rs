@@ -138,7 +138,7 @@ pub fn build<'a>(ctx: &'a WorldCtx, st: &WorldState, sid: u32, home: Pos, master
     // Objets au sol : à portée, avec le droit de les ramasser maintenant.
     for g in st.ground.items.values() {
         if crate::world::combat::dist2d(g.pos, pos) <= cfg.scan_radius {
-            out.items.push(GroundItemView { id: g.iid, pos: to_pos(g.pos), mine: g.owner == cid || now >= g.owner_until, gold: g.tid == crate::world::loot::GOLD_TID });
+            out.items.push(GroundItemView { id: g.iid, pos: to_pos(g.pos), mine: !g.owner.is_some_and(|o| o != cid) || now >= g.owner_until, gold: g.tid == crate::world::loot::GOLD_TID });
         }
     }
     // Compétences actives connues, avec les valeurs de leur niveau.
