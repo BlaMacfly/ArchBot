@@ -20,6 +20,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// Attente au plus avant de faire sortir un bot en combat ou mort quand la population visée baisse.
+const SURPLUS_PATIENCE: Duration = Duration::from_secs(30);
+
 /// Un bot en jeu.
 pub struct BotEntry {
     pub cid: u32,
@@ -30,8 +33,8 @@ pub struct BotEntry {
     pub entered_at: Instant,
     /// Fin de session (rotation), s'il y en a une.
     pub session_end: Option<Instant>,
-    /// Compteurs déjà reportés dans les métriques.
-    pub counted: (u32, u32),
+    /// Compteurs déjà reportés dans les métriques : victoires, morts, niveaux, expérience (64 bits).
+    pub counted: (u32, u32, u32, u64),
     pub row: BotRow,
 }
 
@@ -44,6 +47,8 @@ pub struct Manager {
     /// Personnages de bots en base, pas en jeu.
     pub pool: Vec<BotRow>,
     pacer: SpawnPacer,
+    /// Depuis quand la population dépasse la cible sans bot au calme à faire sortir (patience de 30 s).
+    surplus_since: Option<Instant>,
     rng: StdRng,
     pub metrics: Metrics,
     tick: u64,
@@ -55,6 +60,7 @@ impl Manager {
         let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(1);
         Manager {
             pacer: SpawnPacer::new(Duration::from_millis(cfg.spawn_interval_ms)),
+            surplus_since: None,
             cfg,
             bots: HashMap::new(),
             target_population: target,
@@ -104,7 +110,7 @@ impl Manager {
         let home = if row.home == Vec3::default() { st.players.get(&sid).map(|p| perception::to_pos(p.ch.pos())).unwrap_or_default() } else { perception::to_pos(row.home) };
         let session_end = archbot::population::session_length(&mut self.rng, self.cfg.rotation_minutes).map(|d| now + d);
         let (cid, name) = (row.character_id, row.name.clone());
-        self.bots.insert(sid, BotEntry { cid, name: name.clone(), brain: Brain::new(cid as u64), home, entered_at: now, session_end, counted: (0, 0), row });
+        self.bots.insert(sid, BotEntry { cid, name: name.clone(), brain: Brain::new(cid as u64), home, entered_at: now, session_end, counted: (0, 0, 0, 0), row });
         self.metrics.spawned += 1;
         info!("[archbot] {name} entre en jeu (session #{sid}, {} bot(s))", self.bots.len());
         Ok(Some(sid))
@@ -172,6 +178,29 @@ impl Manager {
                 }
             }
         }
+        // Population visée en baisse (/bot population n) : les bots autonomes en trop se déconnectent comme des joueurs
+        // (groupe quitté, position enregistrée, personnage rendu à la réserve), au calme d'abord, deux par tour au plus ;
+        // ceux qui combattent ou sont morts ne partent qu'après 30 s sans bot au calme.
+        let surplus = self.autonomous_count().saturating_sub(self.target_population);
+        if surplus == 0 {
+            self.surplus_since = None;
+        } else {
+            let candidates: Vec<archbot::population::Leaver> = self
+                .bots
+                .iter()
+                .filter(|(_, e)| !e.brain.is_companion())
+                .filter_map(|(sid, _)| st.players.get(sid).map(|p| archbot::population::Leaver { id: *sid, in_combat: now < p.timers.combat_until, dead: p.dead }))
+                .collect();
+            let since = *self.surplus_since.get_or_insert(now);
+            let patience_out = now.duration_since(since) >= SURPLUS_PATIENCE;
+            let leaving = archbot::population::leavers(&candidates, self.autonomous_count(), self.target_population, 2, patience_out);
+            if !leaving.is_empty() {
+                self.surplus_since = None;
+            }
+            for sid in leaving {
+                self.despawn(world, st, sid).await;
+            }
+        }
         // Rotation : un bot autonome en fin de session, hors combat, cède sa place.
         let rotate: Vec<u32> = self
             .bots
@@ -226,10 +255,12 @@ impl Manager {
                 }
             }
             if let Some(e) = self.bots.get_mut(&sid) {
-                let (k, d) = (e.brain.stats.kills, e.brain.stats.deaths);
-                self.metrics.kills += (k - e.counted.0) as u64;
-                self.metrics.deaths += (d - e.counted.1) as u64;
-                e.counted = (k, d);
+                let s = e.brain.stats;
+                self.metrics.kills += (s.kills - e.counted.0) as u64;
+                self.metrics.deaths += (s.deaths - e.counted.1) as u64;
+                self.metrics.level_ups += (s.level_ups - e.counted.2) as u64;
+                self.metrics.exp_gained = self.metrics.exp_gained.saturating_add(s.exp_gained - e.counted.3);
+                e.counted = (s.kills, s.deaths, s.level_ups, s.exp_gained);
             }
         }
         self.metrics.set_states(self.bots.values().map(|e| e.brain.state));

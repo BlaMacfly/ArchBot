@@ -285,7 +285,9 @@ async fn slash(world: &Arc<World>, st: &mut WorldState, m: &mut Manager, sid: u3
         "population" if admin => {
             let n: usize = args.get(1).and_then(|v| v.parse().ok()).unwrap_or(m.target_population).min(m.cfg.max_bots);
             m.target_population = n;
-            send_system(st, sid, &format!("Population de bots autonomes visée : {n}."));
+            let surplus = m.autonomous_count().saturating_sub(n);
+            let note = if surplus > 0 { format!(" ; {surplus} bot(s) en trop se déconnectent (au calme d'abord)") } else { String::new() };
+            send_system(st, sid, &format!("Population de bots autonomes visée : {n}{note}."));
         }
         "stats" | "spawn" | "despawn" | "population" => {
             send_system(st, sid, &format!("Niveau MJ {} requis pour cette commande.", m.cfg.command_level));

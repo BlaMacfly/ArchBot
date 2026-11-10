@@ -1,7 +1,8 @@
 # Modifications apportées à ArchCore
 
-Le patch `patches/archcore-archbot.patch` (branche `Core`, commit `6912f16` du 8 novembre 2026 ; écrit sur `c9a3c6d`, adapté le 3 puis le 8 novembre)
-touche 12 fichiers pour 121 lignes ajoutées et 9 retirées (adapté à 6912f16). Aucune logique de jeu n'est changée : ce sont des
+Le patch `patches/archcore-archbot.patch` (branche `Core`, commit `6b1bf96` du 9 novembre 2026 ; écrit sur `c9a3c6d`, adapté le 3, le 8
+puis le 9 novembre) touche 12 fichiers pour 121 lignes ajoutées et 9 retirées. De `6912f16` à `6b1bf96`, seuls les numéros de ligne
+de `tools/sim.rs` (nouveaux scénarios) et l'index de `world/combat.rs` ont bougé : les points d'accroche sont les mêmes. Aucune logique de jeu n'est changée : ce sont des
 points d'accroche, des découpages de fonctions existantes et des exports `pub(crate)`.
 
 | Fichier | Changement | Pourquoi |
@@ -22,8 +23,8 @@ points d'accroche, des découpages de fonctions existantes et des exports `pub(c
 
 Chaque modification est locale et commentée « ArchBot » dans le patch ; en cas de conflit, rejouer la même
 idée au même endroit (les fonctions s'appellent toujours `game_enter`, `on_action`, `request_cast`,
-`on_chatting`, `run` de `server.rs`). Le test `cargo test` d'ArchCore doit continuer à passer : avec le patch,
-les 299 + 11 tests du serveur passent, plus les 45 d'ArchBot compilés dans l'espace de travail.
+`on_chatting`, `run` de `server.rs`). Le test `cargo test` d'ArchCore doit continuer à passer : avec le patch (6b1bf96),
+les 366 + 11 tests du serveur passent (dont 1 de l'adaptateur), plus les 48 d'ArchBot compilés dans l'espace de travail.
 
 ## Ce que le patch ne fait pas
 

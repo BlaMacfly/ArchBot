@@ -97,6 +97,8 @@ pub struct Sim {
     pub actions: HashMap<&'static str, u32>,
     pub states: HashSet<BotState>,
     pub respawn_secs: Option<f64>,
+    /// Expérience donnée par monstre tué (64 bits ; 0 : aucune) ; montée de niveau quand `me.exp` atteint `me.exp_next`.
+    pub exp_per_kill: u64,
     pub trace: Vec<String>,
     pub blocked_steps: u32,
     pub max_state_stay: HashMap<BotState, f64>,
@@ -125,6 +127,7 @@ impl Sim {
             actions: HashMap::new(),
             states: HashSet::new(),
             respawn_secs: None,
+            exp_per_kill: 0,
             trace: Vec::new(),
             blocked_steps: 0,
             max_state_stay: HashMap::new(),
@@ -273,6 +276,14 @@ impl Sim {
                             let id = self.next_item;
                             self.next_item += 1;
                             self.items.push(Item { id, pos: m.pos, owner: me_id });
+                            if self.exp_per_kill > 0 {
+                                self.me.exp += self.exp_per_kill;
+                                self.me.exp_total += self.exp_per_kill;
+                                while self.me.exp_next > 0 && self.me.exp >= self.me.exp_next {
+                                    self.me.exp -= self.me.exp_next;
+                                    self.me.level += 1;
+                                }
+                            }
                         }
                     }
                 }

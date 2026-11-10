@@ -51,6 +51,16 @@ pub fn potions(ctx: &WorldCtx, p: &crate::world::Player) -> (u32, u32) {
     (hp, mp)
 }
 
+/// Expérience du personnage en 64 bits (`characters.exp` BIGINT, courbe `level_exp` d'ArchCore, `needed[n]` pour passer
+/// le niveau n) : (pour le niveau suivant, cumul depuis le niveau 1). Le cumul sert au moteur à compter les gains d'un
+/// tour à l'autre, montées de niveau comprises.
+pub fn experience(needed: &[u64], level: i32, exp: u64) -> (u64, u64) {
+    let level = level.max(1) as usize;
+    let next = needed.get(level).copied().unwrap_or(0);
+    let before: u64 = needed.iter().take(level).skip(1).fold(0u64, |a, n| a.saturating_add(*n));
+    (next, before.saturating_add(exp))
+}
+
 /// Perception du bot `sid` ; `None` s'il n'est plus en jeu. `home` : point d'ancrage ; `master` : CID du maître
 /// d'un compagnon.
 pub fn build<'a>(ctx: &'a WorldCtx, st: &WorldState, sid: u32, home: Pos, master: Option<u32>, cfg: &BotConfig, now: Instant, terrain: &'a MapTerrain<'a>) -> Option<Perception<'a>> {
@@ -61,6 +71,7 @@ pub fn build<'a>(ctx: &'a WorldCtx, st: &WorldState, sid: u32, home: Pos, master
     let party = st.parties.party_of(cid).map(|pt| PartyView { leader: pt.members[0], members: pt.members.clone() });
     let party_members: Vec<u32> = party.as_ref().map(|pt| pt.members.clone()).unwrap_or_default();
     let f = &p.factors;
+    let (exp_next, exp_total) = experience(&ctx.level_exp, p.ch.level, p.ch.exp);
     let me = SelfView {
         id: cid,
         name: p.ch.name.clone(),
@@ -71,6 +82,9 @@ pub fn build<'a>(ctx: &'a WorldCtx, st: &WorldState, sid: u32, home: Pos, master
         mp: f.point[1],
         mp_max: f.point_max[1],
         level: p.ch.level,
+        exp: p.ch.exp,
+        exp_next,
+        exp_total,
         dead: p.dead,
         invincible: p.invincible_until.is_some_and(|t| now < t),
         in_combat: now < p.timers.combat_until,
@@ -147,6 +161,11 @@ pub fn build<'a>(ctx: &'a WorldCtx, st: &WorldState, sid: u32, home: Pos, master
         if t.auto_attack || t.nature().passive || t.is_product() || t.is_evolution() || t.archlord_only() || t.is_mutation() {
             continue;
         }
+        // Arme ou bouclier exigé que le bot ne tient pas (Dual Slash, Dual Shot…) : le serveur refuserait chaque
+        // lancement (requirement.rs) ; la compétence n'est pas proposée au moteur.
+        if !t.is_product() && t.requirement != 0 && !crate::world::requirement::met(t.requirement, p.skills.held) {
+            continue;
+        }
         let Some(lv) = t.level(o.level) else { continue };
         out.skills.push(SkillView {
             id: o.id,
@@ -164,4 +183,20 @@ pub fn build<'a>(ctx: &'a WorldCtx, st: &WorldState, sid: u32, home: Pos, master
         });
     }
     Some(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::experience;
+
+    #[test]
+    fn experience_cumulee_en_64_bits() {
+        // needed[n] : expérience pour passer le niveau n (indice 0 inutilisé), valeurs au-delà de 2³².
+        let needed = [0u64, 100, 200, 5_000_000_000, 7_000_000_000];
+        assert_eq!(experience(&needed, 1, 50), (100, 50));
+        assert_eq!(experience(&needed, 3, 10), (5_000_000_000, 310));
+        assert_eq!(experience(&needed, 4, 4_294_967_296), (7_000_000_000, 5_000_000_300 + 4_294_967_296));
+        // Niveau maximal (ou courbe plus courte) : rien au-delà.
+        assert_eq!(experience(&needed, 5, 1), (0, 12_000_000_301));
+    }
 }

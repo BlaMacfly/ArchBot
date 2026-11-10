@@ -23,6 +23,9 @@ pub struct Metrics {
     pub despawned: u64,
     pub kills: u64,
     pub deaths: u64,
+    /// Niveaux et expérience gagnés par les bots (64 bits, comme l'expérience d'ArchCore).
+    pub level_ups: u64,
+    pub exp_gained: u64,
 }
 
 impl Metrics {
@@ -83,8 +86,8 @@ impl Metrics {
         actions.sort();
         lines.push(format!("Actions : {}", if actions.is_empty() { "aucune".to_string() } else { actions.join(", ") }));
         lines.push(format!(
-            "Entrées {}, sorties {}, monstres tués {}, morts {}, pensées {}, erreurs {}",
-            self.spawned, self.despawned, self.kills, self.deaths, self.thoughts, self.errors
+            "Entrées {}, sorties {}, monstres tués {}, morts {}, niveaux gagnés {}, expérience gagnée {}, pensées {}, erreurs {}",
+            self.spawned, self.despawned, self.kills, self.deaths, self.level_ups, self.exp_gained, self.thoughts, self.errors
         ));
         lines.join("\n")
     }

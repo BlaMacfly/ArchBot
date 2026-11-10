@@ -96,9 +96,16 @@ fn autonomie_sur_la_duree() {
         let angle = i as f64;
         sim.mobs.push(Mob::new(0x5000_0010 + i, Pos::new((2000.0 * angle.cos()) as f32, 0.0, (2000.0 * angle.sin()) as f32), 3, 60, 6));
     }
+    // Expérience de la courbe de Webzen (64 bits) : chaque victoire dépasse 2³² points cumulés en deux coups.
+    sim.exp_per_kill = 2_500_000_000;
+    sim.me.exp_next = 10_000_000_000;
     let mut brain = Brain::new(4);
     sim.run(&mut brain, &cfg(), 900.0, 0.5);
     assert!(brain.stats.kills >= 5, "{:?} ; trace : {:?}", brain.stats, sim.trace);
+    // La dernière victoire peut tomber après le dernier tour de pensée : au plus une d'écart.
+    let seen = brain.stats.exp_gained;
+    assert!(seen > u32::MAX as u64 && sim.me.exp_total - seen <= sim.exp_per_kill, "expérience vue {seen}, cumul {}", sim.me.exp_total);
+    assert!(brain.stats.level_ups >= 1 && brain.stats.level_ups as i32 <= sim.me.level - 3, "{:?}, niveau {}", brain.stats, sim.me.level);
     assert!(sim.states.contains(&BotState::Exploring) && sim.states.contains(&BotState::Combat), "{:?}", sim.states);
     for (state, stay) in &sim.max_state_stay {
         let limit = match state {

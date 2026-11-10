@@ -96,6 +96,12 @@ celles que le bot a **réellement apprises**, avec les valeurs de SKILL_CONST (p
 relance) : aucune compétence n'est inventée. L'apprentissage (`LearnSkills`) suit les arbres de maîtrise,
 les points, le prix et le niveau, par `skills::learn` et `skills::upgrade` d'ArchCore.
 
+Expérience : ArchCore la tient en 64 bits (`characters.exp` BIGINT, courbe `level_exp` de Webzen, niveaux 1 à
+121, plus de 2³² points par niveau à partir du niveau 113, 10¹¹ points cumulés au niveau 120). La perception donne au moteur l'expérience du
+niveau (`exp`), celle du niveau suivant (`exp_next`) et le cumul depuis le niveau 1 (`exp_total`, calculé par
+l'adaptateur à partir de `level_exp`) ; le cerveau en déduit d'un tour à l'autre niveaux gagnés, expérience
+gagnée et perdue (pénalité de mort), reportés dans les métriques (`u64`).
+
 ## Persistance
 
 Les personnages des bots sont des lignes ordinaires de `characters` (compte `archbot_<nom>`), avec leurs

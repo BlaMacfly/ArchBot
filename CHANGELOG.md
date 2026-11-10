@@ -1,5 +1,36 @@
 # Journal des versions
 
+## Non publié — 2026-11-09
+
+ArchCore `6b1bf96` (code de guilde 46, source Webzen : 3 235 quêtes, objets du monde à quêtes et ramassage op 11,
+2 768 titres, 287 maîtrises, courbe d'expérience 1-121 en 64 bits ; Gacha).
+
+- Patch ArchCore régénéré pour `6b1bf96` : mêmes 12 fichiers, mêmes lignes ajoutées et retirées (121 / 9) ; seuls
+  les numéros de ligne de `tools/sim.rs` et l'index de `world/combat.rs` changent.
+- Expérience en 64 bits : la perception donne au moteur l'expérience du niveau, celle du niveau suivant et le cumul
+  depuis le niveau 1 (`u64`, d'après `level_exp`) ; le cerveau compte niveaux gagnés, expérience gagnée et perdue
+  (pénalité de mort) ; `/bot stats` et le statut d'un bot les affichent (« niveaux gagnés », « expérience gagnée »).
+- Quêtes, titres et Gacha : ignorés par les bots, sans rien casser (voir `docs/LIMITATIONS.md`).
+- Nouveau scénario `archcore sim bots … companion <compte> <mdp> <perso> [minutes]` : essai long d'un compagnon
+  engagé par un joueur sans droits MJ, avec don de 5 000 000 000 points d'expérience vérifié par le statut.
+- `/bot population n` fait aussi sortir les bots autonomes en trop quand la cible baisse : déconnexion comme un
+  joueur (`remove_player` : groupe quitté, position enregistrée ; compteurs dans `archbot_character`, personnage rendu
+  à la réserve), au calme d'abord, deux par tour au plus ; un bot en combat ou mort ne part qu'après 30 s sans bot au
+  calme. Règle dans le moteur (`population::leavers`, testée). `sim bots load` attend le compte exact à chaque palier.
+- Compétences exigeant une arme ou un bouclier que le bot ne tient pas (Dual Slash, Dual Shot, Flame Core…) : plus
+  proposées au moteur (le serveur refusait chaque lancement : 2 840 refus en 11 min à 20 bots).
+- Bot déplacé à plus de 36 000 unités de son centre d'exploration (MJ, portail, résurrection ailleurs) : il chasse
+  là où il est au lieu de rester inactif (un but tiré autour d'un village lointain n'avait pas de chemin).
+- Vérifié à part : arrêt propre par Ctrl+C (`archbot::shutdown`) ; 20 bots sortis, positions enregistrées.
+- Vérifié : ArchBot 48 tests ; ArchCore patché 366 + 11 tests ; essai de 17 min sur le serveur de test 11102 / 11108
+  (12 à 20 bots autonomes, 1 compagnon) : 16/16, 8/8, 360 victoires, 2 morts et résurrections, 0 erreur du
+  module, 0,08 % de CPU en moyenne (`docs/TESTS.md` § 3 bis).
+
+EN — Patch and adapter updated for ArchCore `6b1bf96`; 64-bit experience in the perception, brain statistics and
+metrics; quests, titles and Gacha ignored by bots; `/bot population` now also logs surplus bots out cleanly; skills
+needing a weapon the bot does not hold are no longer tried; clean Ctrl+C shutdown verified; new long companion scenario; 48 engine tests, 366 + 11 ArchCore
+tests and a 17-minute live test-server run passed (see `docs/TESTS.md` § 3 bis).
+
 ## Non publié — 2026-11-08
 
 ArchCore `6912f16` (Gacha EP8, retour de bug n° 2).

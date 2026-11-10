@@ -9,7 +9,7 @@ en message système.
 | Commande | Effet |
 |---|---|
 | `/bot help` | Aide |
-| `/bot list` | Bots en jeu (nom, niveau, temps en jeu, mode, état, cible, compteurs ; 20 lignes au plus) |
+| `/bot list` | Bots en jeu (nom, niveau, temps en jeu, mode, état, cible, compteurs dont niveaux et expérience gagnés ; 20 lignes au plus) |
 | `/bot hire [nom]` | Le bot libre le plus proche (à moins de 20 000 unités), ou le bot nommé, devient votre compagnon. Personne de libre : un nouveau bot est créé à côté de vous si `ArchBot.MaxBots` le permet. Le compagnon vous invite dans son groupe (acceptez l'invitation). |
 | `/bot dismiss [nom]` | Vos compagnons (ou celui nommé) redeviennent autonomes et quittent le groupe |
 | `/bot follow [distance]` | Vous suivre, à cette distance (100 à 3000) |
@@ -30,11 +30,11 @@ autre texte reçoit l'aide. Seul le maître d'un compagnon peut lui donner des o
 
 | Commande | Effet |
 |---|---|
-| `/bot stats` | Métriques : bots, tours d'IA (dernier, moyenne, EMA, maximum), bots par état, actions exécutées par nature, entrées, sorties, monstres tués, morts, pensées, erreurs |
+| `/bot stats` | Métriques : bots, tours d'IA (dernier, moyenne, EMA, maximum), bots par état, actions exécutées par nature, entrées, sorties, monstres tués, morts, niveaux gagnés, expérience gagnée (64 bits), pensées, erreurs |
 | `/bot stats reset` | Remet les métriques à zéro (tests de charge) |
 | `/bot spawn <n>` | Fait entrer n bots tout de suite (réserve, sinon création) ; la population visée suit |
 | `/bot despawn <n>` / `all` / `<nom>` | Sort n bots autonomes (les plus anciens), tous, ou celui nommé |
-| `/bot population <n>` | Population de bots autonomes visée (le gestionnaire monte ou laisse descendre par rotation) |
+| `/bot population <n>` | Population de bots autonomes visée : le gestionnaire en fait entrer (un par `SpawnIntervalMs`) ou fait se déconnecter les bots en trop, comme des joueurs (au calme d'abord, deux par tour ; en combat ou morts après 30 s) |
 
 Toutes les commandes `/bot` sont consommées par le module : elles n'atteignent ni les commandes MJ
 d'ArchCore ni la discussion.
@@ -45,4 +45,5 @@ d'ArchCore ni la discussion.
 |---|---|
 | `archcore sim bots [compte] [mdp] [perso] [n]` | 16 vérifications de bout en bout à travers le vrai protocole (compte MJ) |
 | `archcore sim bots load [paliers] [compte] [mdp] [perso]` | Test de charge : population par paliers, 60 s de mesure chacun |
+| `archcore sim bots gmtest gmtest GmTest companion test test Testeur [minutes]` | Essai long d'un compagnon engagé par un joueur sans droits MJ : `/bot hire`, groupe, chasse en attitude défensive puis offensive, `/bot stats` chaque minute, 5 000 000 000 points d'expérience donnés au compagnon (`/exp`) et comptés par son statut, `/bot dismiss` ; niveaux rétablis à la fin |
 | `archcore sim client gmtest gmtest GmTest "/bot list"` | Toute commande `/bot …` depuis un client simulé |

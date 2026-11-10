@@ -131,6 +131,13 @@ pub struct SelfView {
     pub mp: i32,
     pub mp_max: i32,
     pub level: i32,
+    /// Expérience dans le niveau (64 bits : la courbe d'origine dépasse 2³² par niveau à partir du niveau 113).
+    pub exp: u64,
+    /// Expérience à réunir pour passer au niveau suivant ; 0 au niveau maximal ou si l'hôte ne la connaît pas.
+    pub exp_next: u64,
+    /// Expérience cumulée depuis le niveau 1 (niveaux passés + `exp`), tenue par l'hôte : les gains se lisent par
+    /// différence d'un tour à l'autre, montée de niveau comprise.
+    pub exp_total: u64,
     pub dead: bool,
     pub invincible: bool,
     /// Un coup donné ou reçu il y a moins de 10 s.
@@ -166,6 +173,9 @@ impl Default for SelfView {
             mp: 50,
             mp_max: 50,
             level: 1,
+            exp: 0,
+            exp_next: 0,
+            exp_total: 0,
             dead: false,
             invincible: false,
             in_combat: false,

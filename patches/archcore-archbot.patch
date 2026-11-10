@@ -194,10 +194,10 @@ index e69b3de..da06d16 100644
      Ok(())
  }
 diff --git a/crates/archcore/src/tools/sim.rs b/crates/archcore/src/tools/sim.rs
-index 54d4a9f..b348974 100644
+index 285f3a8..caa90a4 100644
 --- a/crates/archcore/src/tools/sim.rs
 +++ b/crates/archcore/src/tools/sim.rs
-@@ -146,6 +146,11 @@ mod usables;
+@@ -151,6 +151,11 @@ mod usables;
  mod title;
  mod wanted;
  
@@ -209,7 +209,7 @@ index 54d4a9f..b348974 100644
  /// Valeur facultative affichée sans « Some(…) ».
  fn o<T: std::fmt::Display>(v: Option<T>) -> String {
      v.map(|x| x.to_string()).unwrap_or_else(|| "-".into())
-@@ -155,6 +160,8 @@ pub async fn run(args: &[String]) -> anyhow::Result<()> {
+@@ -160,6 +165,8 @@ pub async fn run(args: &[String]) -> anyhow::Result<()> {
      let a = |i: usize, d: &str| args.get(i).cloned().unwrap_or_else(|| d.to_string());
      match args.first().map(String::as_str) {
          Some("client") => client(&a(1, "test"), &a(2, "test"), &a(3, "Testeur"), args.get(4..).unwrap_or_default()).await,
@@ -236,7 +236,7 @@ index f6d6def..25a1dc7 100644
      let prefix = if kind == chat_type::WHISPER { None } else { split_prefix(&full) };
      let text = prefix.map(|(_, rest)| rest.to_string()).unwrap_or_else(|| full.clone());
 diff --git a/crates/archcore/src/world/combat.rs b/crates/archcore/src/world/combat.rs
-index 1d9fa6a..1a351f2 100644
+index cb19445..5cae663 100644
 --- a/crates/archcore/src/world/combat.rs
 +++ b/crates/archcore/src/world/combat.rs
 @@ -385,6 +385,13 @@ pub fn dist2d(a: Vec3, b: Vec3) -> f64 {

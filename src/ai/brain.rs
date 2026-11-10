@@ -11,7 +11,7 @@ use crate::commands::{Command, HELP};
 use crate::config::BotConfig;
 use crate::movement::{NavStep, Navigator, ARRIVAL_TOLERANCE};
 use crate::party;
-use crate::world::{Action, ClassKind, EntityId, MonsterView, Perception, Pos, PotionKind};
+use crate::world::{Action, ClassKind, EntityId, MonsterView, Perception, Pos, PotionKind, SelfView};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::time::{Duration, Instant};
@@ -72,6 +72,11 @@ pub struct BrainStats {
     pub loots: u32,
     pub explorations: u32,
     pub stuck: u32,
+    /// Niveaux gagnés depuis l'entrée en jeu.
+    pub level_ups: u32,
+    /// Expérience gagnée et perdue (pénalité de mort) depuis l'entrée en jeu, en 64 bits.
+    pub exp_gained: u64,
+    pub exp_lost: u64,
 }
 
 /// Délais internes.
@@ -115,6 +120,8 @@ pub struct Brain {
     /// Facteur du rayon d'exploration : grandit tant que les explorations ne croisent aucun monstre éligible
     /// (un village est sûr, il faut s'en éloigner pour chasser), retombe quand on en trouve.
     explore_scale: f64,
+    /// Dernier (niveau, expérience cumulée) vu : base des gains d'expérience.
+    progress: Option<(i32, u64)>,
     rng: StdRng,
 }
 
@@ -147,6 +154,7 @@ impl Brain {
             attack_order: false,
             camp: None,
             explore_scale: 1.0,
+            progress: None,
             rng: StdRng::seed_from_u64(seed),
         }
     }
@@ -258,15 +266,34 @@ impl Brain {
             Mode::Companion(c) => format!("compagnon de {} ({}, {})", c.master_name, c.stance.name(), match c.order { Order::Follow => "suit".to_string(), Order::Stay(_) => "reste".to_string() }),
         };
         format!(
-            "{mode}, état {} ({}), cible {}, {} victoire(s), {} mort(s), {} fuite(s), {} ramassage(s)",
+            "{mode}, état {} ({}), cible {}, {} victoire(s), {} mort(s), {} fuite(s), {} ramassage(s), {} niveau(x) et {} point(s) d'expérience gagnés",
             self.state,
             self.reason,
             self.target.map(|t| format!("{t:#x}")).unwrap_or_else(|| "aucune".into()),
             self.stats.kills,
             self.stats.deaths,
             self.stats.flees,
-            self.stats.loots
+            self.stats.loots,
+            self.stats.level_ups,
+            self.stats.exp_gained
         )
+    }
+
+    /// Gains d'expérience et de niveaux, par différence avec le tour précédent (l'expérience cumulée de l'hôte
+    /// couvre les montées de niveau ; une baisse est une pénalité de mort). Un hôte qui ne tient pas le cumul
+    /// (`exp_total` à 0) ne compte que les niveaux.
+    fn track_progress(&mut self, me: &SelfView) {
+        if let Some((level, total)) = self.progress {
+            if me.level > level {
+                self.stats.level_ups += (me.level - level) as u32;
+            }
+            if me.exp_total > total {
+                self.stats.exp_gained = self.stats.exp_gained.saturating_add(me.exp_total - total);
+            } else if me.exp_total < total && me.level <= level {
+                self.stats.exp_lost = self.stats.exp_lost.saturating_add(total - me.exp_total);
+            }
+        }
+        self.progress = Some((me.level, me.exp_total));
     }
 
     fn enter(&mut self, next: BotState, now: Instant, reason: &'static str) {
@@ -296,6 +323,7 @@ impl Brain {
         let now = p.now;
         let mut out = Vec::new();
         self.blacklist.retain(|(_, until)| *until > now);
+        self.track_progress(&p.me);
 
         if p.me.dead {
             return self.think_dead(cfg, now);
@@ -680,6 +708,14 @@ impl Brain {
     /// Point d'exploration : dans le disque d'exploration autour du terrain de chasse (sinon du point d'ancrage,
     /// avec le facteur d'éloignement), hors sol bloqué, à plus de 500 unités d'ici ; huit tirages au plus.
     fn pick_explore_goal(&mut self, p: &Perception, cfg: &BotConfig) -> Option<Pos> {
+        // Bot déplacé très loin de son centre d'exploration (téléporté par un MJ, portail, résurrection ailleurs) :
+        // un but tiré autour d'un centre à des dizaines de milliers d'unités n'aurait pas de chemin et le bot
+        // resterait inactif. Il chasse alors là où il est.
+        let center = self.camp.unwrap_or(p.me.home);
+        if center.dist2d(p.me.pos) > cfg.explore_radius * MAX_EXPLORE_SCALE * 2.0 {
+            self.camp = Some(p.me.pos);
+            self.explore_scale = 1.0;
+        }
         let (home, scale) = match self.camp {
             Some(c) => (c, 1.0),
             None => (p.me.home, self.explore_scale),
@@ -711,7 +747,7 @@ impl Brain {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::{GroundItemView, OpenTerrain, PlayerView, SelfView};
+    use crate::world::{GroundItemView, OpenTerrain, PlayerView};
 
     fn perception(now: Instant, me: SelfView) -> Perception<'static> {
         Perception::new(now, me, &OpenTerrain)
@@ -905,5 +941,37 @@ mod tests {
         p.monsters.push(mob(1, 2000.0, false));
         b.think(&p, &cfg);
         assert_ne!(b.target(), Some(1));
+    }
+
+    #[test]
+    fn progression_en_64_bits() {
+        // Courbe de Webzen : au-delà du niveau 100, l'expérience dépasse 2³² ; gains et montées lus par différence.
+        let cfg = BotConfig::default();
+        let mut b = Brain::new(7);
+        let t0 = Instant::now();
+        let base = 600_000_000_000u64;
+        let me = SelfView { level: 119, exp: 5_000_000_000, exp_next: 9_000_000_000, exp_total: base, ..Default::default() };
+        b.think(&perception(t0, me.clone()), &cfg);
+        assert_eq!((b.stats.level_ups, b.stats.exp_gained), (0, 0), "premier tour : référence seulement");
+        // 5 000 000 000 points d'un coup, passage au niveau 120.
+        b.think(&perception(t0 + Duration::from_secs(1), SelfView { level: 120, exp: 1_000_000_000, exp_next: 0, exp_total: base + 5_000_000_000, ..me.clone() }), &cfg);
+        assert_eq!((b.stats.level_ups, b.stats.exp_gained), (1, 5_000_000_000));
+        // Pénalité de mort : perte comptée à part.
+        b.think(&perception(t0 + Duration::from_secs(2), SelfView { level: 120, exp: 400_000_000, exp_total: base + 4_400_000_000, ..me }), &cfg);
+        assert_eq!((b.stats.exp_gained, b.stats.exp_lost), (5_000_000_000, 600_000_000));
+        assert!(b.status_line().contains("5000000000 point(s) d'expérience"), "{}", b.status_line());
+    }
+
+    #[test]
+    fn deplace_loin_du_point_d_ancrage() {
+        // Point d'ancrage dans un autre village, à un million d'unités : l'exploration repart d'ici.
+        let cfg = BotConfig::default();
+        let mut b = Brain::new(8);
+        let t0 = Instant::now();
+        let me = SelfView { pos: Pos::new(-475_000.0, 0.0, -66_000.0), home: Pos::new(517_000.0, 0.0, 38_000.0), ..Default::default() };
+        let out = b.think(&perception(t0, me.clone()), &cfg);
+        let Some(Action::MoveTo(wp)) = out.iter().find(|a| matches!(a, Action::MoveTo(_))) else { panic!("{out:?} ; {}", b.status_line()) };
+        assert!(wp.dist2d(me.pos) <= cfg.explore_radius + 1.0, "{wp:?}");
+        assert_eq!(b.camp(), Some(me.pos));
     }
 }

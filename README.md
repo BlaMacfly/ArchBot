@@ -87,12 +87,14 @@ tests/          engine scenarios in a simulated world (movement, obstacles, comb
 | Companion: hire, party invitation, follow in formation, stay/come, defensive/aggressive, chat orders | ✅ verified with `archcore sim bots` |
 | Persistence (characters kept and resumed at next start), rotation, GM commands, metrics | ✅ live server |
 | Load: 1 → 100 bots on a live test server | ✅ 100 bots: 9.6 ms per AI tick on average (max 22.8 ms), process under 0.25 % of a 16-core machine, +0.7 MB — see docs/TESTS.md |
+| ArchCore `6b1bf96` (Webzen quests, titles, masteries, 64-bit XP curve 1-121, Gacha) | ✅ live test server, 9 November 2026: 17 min, 12 to 20 autonomous bots + 1 companion, 16/16 end-to-end checks, 8/8 companion checks (12 min), 360 kills, 1 104 pickups, 2 deaths and resurrections, 5 000 000 000 XP counted (64 bits), 0 module error, process at 0.08 % CPU on average |
+| Quests, titles, Gacha | ⚪ ignored by bots (nothing breaks; bots take no quest, equip no title, never roll the Gacha) |
 | Rendering in the real ArchLord client | ⚪ not verified yet (only what the server sends to a simulated client) |
 | Shopping at NPCs, quests, PvP, mounts, guilds, healing allies | ❌ not implemented (see docs/LIMITATIONS.md) |
 
 ### Requirements
 
-- ArchCore at the revision the patch was written for (branch `Core`, commit `6912f16`, 8 November 2026; the
+- ArchCore at the revision the patch was written for (branch `Core`, commit `6b1bf96`, 9 November 2026; the
   same hooks are also on ArchCore's `archbot` branch). On a newer revision the patch may need a manual
   touch-up: the changes are small and listed one by one in [docs/ARCHCORE-CHANGES.md](docs/ARCHCORE-CHANGES.md).
 - Rust 1.85+, MariaDB, and ArchCore's databases initialised (`archcore db-init`, `archcore import`).
@@ -143,10 +145,11 @@ Details and replies: [docs/COMMANDES.md](docs/COMMANDES.md).
 ### Tests
 
 ```bash
-cargo test                                            # engine: 35 unit tests + 10 simulated-world scenarios
+cargo test                                            # engine: 38 unit tests + 10 simulated-world scenarios
 # with ArchCore patched and a test server running (ARCHCORE_CONF_DIR):
 archcore sim bots gmtest gmtest GmTest 3              # 16 end-to-end checks through the real protocol
 archcore sim bots gmtest gmtest GmTest load 1,10,25,50,100   # load test, 60 s of metrics per step
+archcore sim bots gmtest gmtest GmTest companion test test Testeur 12   # long companion run, non-GM player
 ```
 
 Results, methodology and what each test does **not** prove: [docs/TESTS.md](docs/TESTS.md).
@@ -233,12 +236,14 @@ tests/          scénarios du moteur dans un monde simulé (déplacement, obstac
 | Compagnon : embauche, invitation de groupe, suivi en formation, stay/come, défensif/offensif, ordres | ✅ vérifié par `archcore sim bots` |
 | Persistance (personnages gardés et repris), rotation, commandes MJ, métriques | ✅ serveur |
 | Charge : 1 → 100 bots sur un serveur de test | ✅ 100 bots : 9,6 ms par tour d'IA en moyenne (max 22,8 ms), processus sous 0,25 % d'une machine à 16 cœurs, +0,7 Mo — docs/TESTS.md |
+| ArchCore `6b1bf96` (quêtes, titres, maîtrises de Webzen, courbe d'expérience 1-121 en 64 bits, Gacha) | ✅ serveur de test, 9 novembre 2026 : 17 min, 12 à 20 bots autonomes + 1 compagnon, 16/16 vérifications de bout en bout, 8/8 pour le compagnon (12 min), 360 victoires, 1 104 ramassages, 2 morts et résurrections, 5 000 000 000 points d'expérience comptés (64 bits), 0 erreur du module, processus à 0,08 % de CPU en moyenne |
+| Quêtes, titres, Gacha | ⚪ ignorés par les bots (rien ne casse ; aucun bot ne prend de quête, n'équipe de titre ni ne tire au Gacha) |
 | Rendu dans le vrai client ArchLord | ⚪ pas encore vérifié (seulement ce que le serveur envoie à un client simulé) |
 | Achats chez les PNJ, quêtes, PvP, montures, guildes, soins des alliés | ❌ non implémentés (docs/LIMITATIONS.md) |
 
 ### Prérequis
 
-- ArchCore à la révision du patch (branche `Core`, commit `6912f16`, 8 novembre 2026 ; les mêmes points
+- ArchCore à la révision du patch (branche `Core`, commit `6b1bf96`, 9 novembre 2026 ; les mêmes points
   d'accroche sont sur la branche `archbot` d'ArchCore). Sur une révision plus récente, le patch peut demander
   une retouche à la main : les modifications sont petites et listées une par une dans
   [docs/ARCHCORE-CHANGES.md](docs/ARCHCORE-CHANGES.md).
@@ -291,10 +296,11 @@ Détail et réponses des bots : [docs/COMMANDES.md](docs/COMMANDES.md).
 ### Tests
 
 ```bash
-cargo test                                            # moteur : 35 tests unitaires + 10 scénarios en monde simulé
+cargo test                                            # moteur : 38 tests unitaires + 10 scénarios en monde simulé
 # avec ArchCore patché et un serveur de test (ARCHCORE_CONF_DIR) :
 archcore sim bots gmtest gmtest GmTest 3              # 16 vérifications de bout en bout, vrai protocole
 archcore sim bots gmtest gmtest GmTest load 1,10,25,50,100   # test de charge, 60 s de mesure par palier
+archcore sim bots gmtest gmtest GmTest companion test test Testeur 12   # essai long d'un compagnon, joueur sans droits MJ
 ```
 
 Résultats, méthode et ce que chaque test ne prouve **pas** : [docs/TESTS.md](docs/TESTS.md).

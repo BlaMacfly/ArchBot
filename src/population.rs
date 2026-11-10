@@ -53,6 +53,36 @@ pub fn session_length(rng: &mut impl Rng, rotation_minutes: u64) -> Option<Durat
     Some(Duration::from_secs(rng.gen_range(secs / 2..=secs * 3 / 2)))
 }
 
+/// Un bot autonome candidat au départ quand la population visée baisse.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Leaver {
+    /// Identifiant de session (ou tout identifiant stable chez l'hôte).
+    pub id: u32,
+    pub in_combat: bool,
+    pub dead: bool,
+}
+
+/// Bots à faire sortir pour ramener la population autonome `autonomous` à `target`, au plus `max` d'un coup :
+/// d'abord ceux qui sont hors combat et vivants (comme un joueur qui se déconnecte au calme), dans l'ordre des
+/// identifiants (les derniers entrés d'abord) ; ceux qui combattent ou sont morts ne partent que s'il n'y a pas
+/// assez de bots au calme et seulement au bout de `patience_out` (vrai : on n'attend plus qu'ils se libèrent).
+/// Les compagnons ne sont jamais candidats (l'hôte ne les passe pas).
+pub fn leavers(candidates: &[Leaver], autonomous: usize, target: usize, max: usize, patience_out: bool) -> Vec<u32> {
+    let surplus = autonomous.saturating_sub(target).min(max);
+    if surplus == 0 {
+        return Vec::new();
+    }
+    let mut calm: Vec<u32> = candidates.iter().filter(|c| !c.in_combat && !c.dead).map(|c| c.id).collect();
+    calm.sort_unstable_by(|a, b| b.cmp(a));
+    let mut out: Vec<u32> = calm.into_iter().take(surplus).collect();
+    if out.len() < surplus && patience_out {
+        let mut busy: Vec<u32> = candidates.iter().filter(|c| c.in_combat || c.dead).map(|c| c.id).collect();
+        busy.sort_unstable_by(|a, b| b.cmp(a));
+        out.extend(busy.into_iter().take(surplus - out.len()));
+    }
+    out
+}
+
 /// Cadence des entrées en jeu : une au plus par intervalle.
 #[derive(Clone, Debug)]
 pub struct SpawnPacer {
@@ -79,6 +109,22 @@ impl SpawnPacer {
 mod tests {
     use super::*;
     use rand::SeedableRng;
+
+    #[test]
+    fn surplus_de_population() {
+        let c = |id, in_combat, dead| Leaver { id, in_combat, dead };
+        let bots = [c(1, false, false), c(2, true, false), c(3, false, false), c(4, false, true), c(5, false, false)];
+        // Rien à faire sous la cible ou à la cible.
+        assert!(leavers(&bots, 5, 5, 4, true).is_empty());
+        assert!(leavers(&bots, 5, 8, 4, true).is_empty());
+        // 5 → 3 : deux bots au calme, les derniers entrés d'abord.
+        assert_eq!(leavers(&bots, 5, 3, 4, false), vec![5, 3]);
+        // Au plus `max` par appel.
+        assert_eq!(leavers(&bots, 5, 0, 2, false), vec![5, 3]);
+        // 5 → 0 : trois au calme ; les occupés attendent tant que la patience n'est pas épuisée.
+        assert_eq!(leavers(&bots, 5, 0, 10, false), vec![5, 3, 1]);
+        assert_eq!(leavers(&bots, 5, 0, 10, true), vec![5, 3, 1, 4, 2]);
+    }
 
     #[test]
     fn noms() {
