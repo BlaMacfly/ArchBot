@@ -1,8 +1,9 @@
 # Modifications apportées à ArchCore
 
-Le patch `patches/archcore-archbot.patch` (branche `Core`, commit `6b1bf96` du 9 novembre 2026 ; écrit sur `c9a3c6d`, adapté le 3, le 8
-puis le 9 novembre) touche 12 fichiers pour 121 lignes ajoutées et 9 retirées. De `6912f16` à `6b1bf96`, seuls les numéros de ligne
-de `tools/sim.rs` (nouveaux scénarios) et l'index de `world/combat.rs` ont bougé : les points d'accroche sont les mêmes. Aucune logique de jeu n'est changée : ce sont des
+Le patch `patches/archcore-archbot.patch` (branche `Core`, commit `a8610ef` du 22 novembre 2026 ; écrit sur `c9a3c6d`, adapté le 3, le 8,
+le 9 puis le 22 novembre) touche 12 fichiers pour 121 lignes ajoutées et 9 retirées. Pour `a8610ef`, seul `server.rs` a changé de
+forme : ArchCore y fait désormais un arrêt propre (`world::shutdown::run`, qui fait quitter le monde à tous les joueurs) ;
+`archbot::shutdown()` passe juste avant, après le second Ctrl+C armé. Ailleurs, seuls des numéros de ligne ont bougé. Aucune logique de jeu n'est changée : ce sont des
 points d'accroche, des découpages de fonctions existantes et des exports `pub(crate)`.
 
 | Fichier | Changement | Pourquoi |
@@ -14,7 +15,7 @@ points d'accroche, des découpages de fonctions existantes et des exports `pub(c
 | `crates/archcore/src/world/combat.rs` | `on_action` découpé : `pub(crate) fn start_attack(ctx, st, sid, target, forced)` | prendre une cible avec les règles du paquet du client |
 | `crates/archcore/src/world/skills.rs` | `request_cast` découpé : `pub(crate) fn start_cast(ctx, st, sid, skill_id, target, forced, ground)` ; `SkillCatalog::all()` | lancer une compétence avec tous les contrôles ; lister les compétences apprenables |
 | `crates/archcore/src/world/chat.rs` | hook `archbot::chat::on_chat` au début de `on_chatting` (sous `cfg(feature)`) | commandes `/bot`, chuchotements et `/p` adressés aux bots |
-| `crates/archcore/src/server.rs` | `archbot::start(w.clone())` après le démarrage du monde, `archbot::shutdown()` avant la fermeture des bases | boucle d'IA ; sortie des bots à l'arrêt |
+| `crates/archcore/src/server.rs` | `archbot::start(w.clone())` après le démarrage du monde, `archbot::shutdown()` avant `world::shutdown::run` (sortie des joueurs) et la fermeture des bases | boucle d'IA ; sortie des bots à l'arrêt |
 | `crates/archcore/src/login.rs` | `give_starting_items` devient une fonction libre `pub(crate)` (la méthode l'appelle) | équipement de départ des personnages créés par le module |
 | `crates/archcore/src/tools/sim.rs` | module `bots` (`#[path]`, sous `cfg(feature)`) et sous-commande `sim bots` | scénarios de bout en bout |
 | `.gitignore` | `/modules/` | le module cloné n'apparaît pas dans le dépôt du serveur |

@@ -1,5 +1,22 @@
 # Journal des versions
 
+## Non publié — 2026-11-22
+
+ArchCore `a8610ef` (arrêt propre du serveur : plus d'entrée en jeu, annonce, sortie de chaque joueur avec sa position).
+
+- Patch ArchCore régénéré pour `a8610ef` : mêmes 12 fichiers, mêmes lignes ajoutées et retirées (121 / 9). Dans
+  `server.rs`, `archbot::shutdown()` passe après le second Ctrl+C armé et avant `world::shutdown::run`, qui fait
+  ensuite sortir les joueurs ; ailleurs, seuls des numéros de ligne changent.
+- `archbot::shutdown()` met la population visée à 0 avant de faire sortir les bots : la boucle d'IA tourne encore
+  pendant la seconde d'annonce d'ArchCore et faisait rentrer un bot, sorti ensuite comme un joueur.
+- Vérifié : ArchBot 48 tests ; ArchCore patché, 384 tests (feature `archbot`) ; arrêt par le launcher ArchHome 0.3.8 sur le serveur
+  de test (bots et joueur sortis, aucun bot rentré pendant l'arrêt, « arrêt terminé »).
+
+EN — Patch updated for ArchCore `a8610ef` (clean server shutdown): `archbot::shutdown()` runs before
+`world::shutdown::run`; same 12 files. On shutdown the target population drops to 0 first, so no bot re-enters
+during ArchCore's one-second notice. 384 patched ArchCore tests passed; clean stop through the ArchHome 0.3.8
+launcher on the test server; 48 ArchBot tests.
+
 ## Non publié — 2026-11-09
 
 ArchCore `6b1bf96` (code de guilde 46, source Webzen : 3 235 quêtes, objets du monde à quêtes et ramassage op 11,

@@ -77,6 +77,9 @@ pub async fn shutdown() {
     let Some(sh) = shared() else { return };
     let mut st = sh.world.state.lock().await;
     let mut m = sh.manager.lock().await;
+    // Population visée à 0 : la boucle d'IA, qui tourne encore pendant l'annonce d'arrêt d'ArchCore (1 s),
+    // ne fait plus entrer de bot après leur sortie.
+    m.target_population = 0;
     let n = m.bots.len();
     m.despawn_all(&sh.world, &mut st).await;
     info!("[archbot] {n} bot(s) sorti(s) du monde ; {}", m.metrics.report().lines().next().unwrap_or_default());

@@ -171,10 +171,10 @@ index e289eee..a47091b 100644
      let id = session.id();
      info!("[{name}] #{id} connecté depuis {}", session.0.remote);
 diff --git a/crates/archcore/src/server.rs b/crates/archcore/src/server.rs
-index e69b3de..da06d16 100644
+index e313d97..82465b9 100644
 --- a/crates/archcore/src/server.rs
 +++ b/crates/archcore/src/server.rs
-@@ -115,12 +115,18 @@ pub async fn run(mode: &str) -> anyhow::Result<()> {
+@@ -119,6 +119,9 @@ pub async fn run(mode: &str) -> anyhow::Result<()> {
          if config.world.soap.enabled {
              crate::soap::serve(&config.world.soap, Arc::new(crate::world::console::SoapBackend(w.clone()))).await?;
          }
@@ -184,20 +184,21 @@ index e69b3de..da06d16 100644
      }
  
      // Serveur prêt : la mesure des requêtes lentes commence (le chargement du monde n'est pas compté).
-     crate::db::set_slow_query_ms(config.database.slow_query_ms);
-     tokio::signal::ctrl_c().await?;
-     info!("arrêt…");
-+    // ArchBot : les bots quittent le monde (positions et progression enregistrées) avant la fermeture des bases.
+@@ -132,6 +135,9 @@ pub async fn run(mode: &str) -> anyhow::Result<()> {
+             std::process::exit(1);
+         }
+     });
++    // ArchBot : les bots quittent le monde (positions et progression enregistrées) avant les joueurs.
 +    #[cfg(feature = "archbot")]
 +    crate::archbot::shutdown().await;
-     db.close().await;
-     Ok(())
- }
+     if let Some(w) = &world {
+         crate::world::shutdown::run(w).await;
+     }
 diff --git a/crates/archcore/src/tools/sim.rs b/crates/archcore/src/tools/sim.rs
-index 285f3a8..caa90a4 100644
+index 557e696..816a64b 100644
 --- a/crates/archcore/src/tools/sim.rs
 +++ b/crates/archcore/src/tools/sim.rs
-@@ -151,6 +151,11 @@ mod usables;
+@@ -157,6 +157,11 @@ mod usables;
  mod title;
  mod wanted;
  
@@ -209,7 +210,7 @@ index 285f3a8..caa90a4 100644
  /// Valeur facultative affichée sans « Some(…) ».
  fn o<T: std::fmt::Display>(v: Option<T>) -> String {
      v.map(|x| x.to_string()).unwrap_or_else(|| "-".into())
-@@ -160,6 +165,8 @@ pub async fn run(args: &[String]) -> anyhow::Result<()> {
+@@ -166,6 +171,8 @@ pub async fn run(args: &[String]) -> anyhow::Result<()> {
      let a = |i: usize, d: &str| args.get(i).cloned().unwrap_or_else(|| d.to_string());
      match args.first().map(String::as_str) {
          Some("client") => client(&a(1, "test"), &a(2, "test"), &a(3, "Testeur"), args.get(4..).unwrap_or_default()).await,
@@ -254,10 +255,10 @@ index cb19445..5cae663 100644
      if super::morph::harmless(st, sid) {
          debug!("[combat] #{sid} : pas d'attaque sous une forme d'animal");
 diff --git a/crates/archcore/src/world/mod.rs b/crates/archcore/src/world/mod.rs
-index ddd5e8b..a351de3 100644
+index a7c9a96..dc056cb 100644
 --- a/crates/archcore/src/world/mod.rs
 +++ b/crates/archcore/src/world/mod.rs
-@@ -648,7 +648,7 @@ impl Connection for WorldConn {
+@@ -672,7 +672,7 @@ impl Connection for WorldConn {
  }
  
  /// Retire un joueur du monde : échange annulé, groupe quitté, position enregistrée.
@@ -266,7 +267,7 @@ index ddd5e8b..a351de3 100644
      // Un échange en cours est annulé : les objets n'ont pas quitté les inventaires.
      trade::cancel(st, sid);
      // Le groupe perd ce membre (et se dissout s'il ne reste qu'un joueur).
-@@ -717,13 +717,22 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
+@@ -746,13 +746,22 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
          s.close();
          return Ok(());
      };
@@ -293,7 +294,7 @@ index ddd5e8b..a351de3 100644
      let mut inventory = Inventory::load(&ctx.db, ch.id).await?;
      // Objets Cash encore dans l'inventaire ordinaire : rangés dans l'inventaire Cash (items.rs).
      let sorted = inventory.sort_cash(&ctx.db, &ctx.catalog).await?;
-@@ -870,10 +879,11 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
+@@ -899,10 +908,11 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
          },
      );
      st.by_cid.insert(cid, s.id());
