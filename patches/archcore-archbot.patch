@@ -237,10 +237,10 @@ index f6d6def..25a1dc7 100644
      let prefix = if kind == chat_type::WHISPER { None } else { split_prefix(&full) };
      let text = prefix.map(|(_, rest)| rest.to_string()).unwrap_or_else(|| full.clone());
 diff --git a/crates/archcore/src/world/combat.rs b/crates/archcore/src/world/combat.rs
-index cb19445..5cae663 100644
+index acf78cb..a9e9c64 100644
 --- a/crates/archcore/src/world/combat.rs
 +++ b/crates/archcore/src/world/combat.rs
-@@ -385,6 +385,13 @@ pub fn dist2d(a: Vec3, b: Vec3) -> f64 {
+@@ -437,6 +437,13 @@ pub fn dist2d(a: Vec3, b: Vec3) -> f64 {
  pub fn on_action(ctx: &WorldCtx, st: &mut WorldState, sid: u32, p: &Packet) {
      let target = p.int(1).unwrap_or(0) as u32;
      let forced = p.int(6).unwrap_or(0) != 0;
@@ -255,10 +255,10 @@ index cb19445..5cae663 100644
      if super::morph::harmless(st, sid) {
          debug!("[combat] #{sid} : pas d'attaque sous une forme d'animal");
 diff --git a/crates/archcore/src/world/mod.rs b/crates/archcore/src/world/mod.rs
-index 5cc7b63..1ee6927 100644
+index af31c92..50c0746 100644
 --- a/crates/archcore/src/world/mod.rs
 +++ b/crates/archcore/src/world/mod.rs
-@@ -672,7 +672,7 @@ impl Connection for WorldConn {
+@@ -674,7 +674,7 @@ impl Connection for WorldConn {
  }
  
  /// Retire un joueur du monde : échange annulé, groupe quitté, position enregistrée.
@@ -267,7 +267,7 @@ index 5cc7b63..1ee6927 100644
      // Un échange en cours est annulé : les objets n'ont pas quitté les inventaires. Sans échange, rien n'est envoyé
      // (le client affichait « The trade has been cancelled » à chaque sortie du monde).
      trade::cancel_if_trading(st, sid);
-@@ -747,13 +747,22 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
+@@ -749,13 +749,22 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
          s.close();
          return Ok(());
      };
@@ -294,10 +294,10 @@ index 5cc7b63..1ee6927 100644
      let mut inventory = Inventory::load(&ctx.db, ch.id).await?;
      // Objets Cash encore dans l'inventaire ordinaire : rangés dans l'inventaire Cash (items.rs).
      let sorted = inventory.sort_cash(&ctx.db, &ctx.catalog).await?;
-@@ -900,10 +909,11 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
-         },
-     );
-     st.by_cid.insert(cid, s.id());
+@@ -933,10 +942,11 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
+         st.players.get_mut(&sid).unwrap().dead = false;
+         penalty?;
+     }
 -    Ok(())
 +    Ok(true)
  }
@@ -309,7 +309,7 @@ index 5cc7b63..1ee6927 100644
      let Some(p) = st.players.get(&sid) else {
          warn!("[world] #{sid} ENTER_WORLD sans personnage");
 diff --git a/crates/archcore/src/world/skills.rs b/crates/archcore/src/world/skills.rs
-index e8d1602..1904772 100644
+index b421515..510fc6b 100644
 --- a/crates/archcore/src/world/skills.rs
 +++ b/crates/archcore/src/world/skills.rs
 @@ -865,6 +865,11 @@ impl SkillCatalog {

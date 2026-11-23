@@ -1,11 +1,13 @@
 # Modifications apportées à ArchCore
 
-Le patch `patches/archcore-archbot.patch` (branche `Core`, commit `3dd6fe1` du 23 novembre 2026 ; écrit sur `c9a3c6d`, adapté le 3, le 8,
-le 9, le 22 puis le 23 novembre) touche 12 fichiers pour 121 lignes ajoutées et 9 retirées. Pour `a8610ef`, seul `server.rs` a changé de
+Le patch `patches/archcore-archbot.patch` (branche `Core`, commit `7b94e5b` du 23 novembre 2026 ; écrit sur `c9a3c6d`, adapté le 3, le 8,
+le 9, le 22 puis deux fois le 23 novembre) touche 12 fichiers pour 121 lignes ajoutées et 9 retirées. Pour `a8610ef`, seul `server.rs` a changé de
 forme : ArchCore y fait désormais un arrêt propre (`world::shutdown::run`, qui fait quitter le monde à tous les joueurs) ;
 `archbot::shutdown()` passe juste avant, après le second Ctrl+C armé. Pour `3dd6fe1`, seul le contexte a bougé : `remove_player`
 appelle `trade::cancel_if_trading` (plus de fausse annulation d'échange à la sortie, bots compris) et `MonsterRegistry::load` prend
-`creature_speed` dans `server.rs`. Ailleurs, seuls des numéros de ligne ont bougé. Aucune logique de jeu n'est changée : ce sont des
+`creature_speed` dans `server.rs`. Pour `7b94e5b` (règles de l'épisode 8), seule la fin d'`admit` a bougé : un personnage
+enregistré mort y prend la pénalité de retour en ville avant le `Ok(true)` ; l'adaptateur ne construit ni `Player`, ni
+`Effect`, ni `Defender` et n'appelle aucune des fonctions changées. Ailleurs, seuls des numéros de ligne ont bougé. Aucune logique de jeu n'est changée : ce sont des
 points d'accroche, des découpages de fonctions existantes et des exports `pub(crate)`.
 
 | Fichier | Changement | Pourquoi |

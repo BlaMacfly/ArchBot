@@ -1,5 +1,19 @@
 # Journal des versions
 
+## Non publié — 2026-11-24
+
+ArchCore `7b94e5b` (règles de l'épisode 8 : caractéristiques, esquive, effets, objets, sauvegarde ; migration
+`202611231000_points_et_mort`).
+
+- Patch ArchCore régénéré pour `7b94e5b` : mêmes 12 fichiers, mêmes lignes ajoutées et retirées (121 / 9). Seule la
+  fin d'`admit` change de contexte (pénalité de retour en ville d'un personnage enregistré mort, avant `Ok(true)`).
+  L'adaptateur compile tel quel : il ne construit ni `Player`, ni `Effect`, ni `Defender`, et n'appelle ni
+  `effects::push`, ni `effects::guard`, ni `combat::player_guard`.
+- Vérifié : ArchBot 48 tests ; ArchCore patché, 388 tests (feature `archbot`) ; serveur de test ArchHome 2 min (migration appliquée, 15 bots en jeu qui chassent, 0 erreur et 0 avertissement, arrêt propre par le launcher, « arrêt terminé »).
+
+EN — Patch updated for ArchCore `7b94e5b` (Episode 8 rules): same 12 files, only the end of `admit` moved; the
+adapter builds unchanged. 48 ArchBot tests and 388 patched ArchCore tests passed; 2-minute ArchHome test server run (migration applied, 15 hunting bots, no error or warning, clean stop through the launcher).
+
 ## Non publié — 2026-11-23
 
 ArchCore `3dd6fe1` (World.CreatureSpeed pour la vitesse des animaux ; plus de fausse annulation d'échange à la sortie
