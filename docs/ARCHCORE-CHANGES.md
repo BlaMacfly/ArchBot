@@ -1,9 +1,11 @@
 # Modifications apportées à ArchCore
 
-Le patch `patches/archcore-archbot.patch` (branche `Core`, commit `a8610ef` du 22 novembre 2026 ; écrit sur `c9a3c6d`, adapté le 3, le 8,
-le 9 puis le 22 novembre) touche 12 fichiers pour 121 lignes ajoutées et 9 retirées. Pour `a8610ef`, seul `server.rs` a changé de
+Le patch `patches/archcore-archbot.patch` (branche `Core`, commit `3dd6fe1` du 23 novembre 2026 ; écrit sur `c9a3c6d`, adapté le 3, le 8,
+le 9, le 22 puis le 23 novembre) touche 12 fichiers pour 121 lignes ajoutées et 9 retirées. Pour `a8610ef`, seul `server.rs` a changé de
 forme : ArchCore y fait désormais un arrêt propre (`world::shutdown::run`, qui fait quitter le monde à tous les joueurs) ;
-`archbot::shutdown()` passe juste avant, après le second Ctrl+C armé. Ailleurs, seuls des numéros de ligne ont bougé. Aucune logique de jeu n'est changée : ce sont des
+`archbot::shutdown()` passe juste avant, après le second Ctrl+C armé. Pour `3dd6fe1`, seul le contexte a bougé : `remove_player`
+appelle `trade::cancel_if_trading` (plus de fausse annulation d'échange à la sortie, bots compris) et `MonsterRegistry::load` prend
+`creature_speed` dans `server.rs`. Ailleurs, seuls des numéros de ligne ont bougé. Aucune logique de jeu n'est changée : ce sont des
 points d'accroche, des découpages de fonctions existantes et des exports `pub(crate)`.
 
 | Fichier | Changement | Pourquoi |

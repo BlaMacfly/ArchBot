@@ -171,7 +171,7 @@ index e289eee..a47091b 100644
      let id = session.id();
      info!("[{name}] #{id} connecté depuis {}", session.0.remote);
 diff --git a/crates/archcore/src/server.rs b/crates/archcore/src/server.rs
-index e313d97..82465b9 100644
+index 63ca94f..4bd2807 100644
 --- a/crates/archcore/src/server.rs
 +++ b/crates/archcore/src/server.rs
 @@ -119,6 +119,9 @@ pub async fn run(mode: &str) -> anyhow::Result<()> {
@@ -255,7 +255,7 @@ index cb19445..5cae663 100644
      if super::morph::harmless(st, sid) {
          debug!("[combat] #{sid} : pas d'attaque sous une forme d'animal");
 diff --git a/crates/archcore/src/world/mod.rs b/crates/archcore/src/world/mod.rs
-index a7c9a96..dc056cb 100644
+index 5cc7b63..1ee6927 100644
 --- a/crates/archcore/src/world/mod.rs
 +++ b/crates/archcore/src/world/mod.rs
 @@ -672,7 +672,7 @@ impl Connection for WorldConn {
@@ -264,10 +264,10 @@ index a7c9a96..dc056cb 100644
  /// Retire un joueur du monde : échange annulé, groupe quitté, position enregistrée.
 -pub(super) async fn remove_player(ctx: &WorldCtx, st: &mut WorldState, sid: u32) {
 +pub(crate) async fn remove_player(ctx: &WorldCtx, st: &mut WorldState, sid: u32) {
-     // Un échange en cours est annulé : les objets n'ont pas quitté les inventaires.
-     trade::cancel(st, sid);
-     // Le groupe perd ce membre (et se dissout s'il ne reste qu'un joueur).
-@@ -746,13 +746,22 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
+     // Un échange en cours est annulé : les objets n'ont pas quitté les inventaires. Sans échange, rien n'est envoyé
+     // (le client affichait « The trade has been cancelled » à chaque sortie du monde).
+     trade::cancel_if_trading(st, sid);
+@@ -747,13 +747,22 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
          s.close();
          return Ok(());
      };
@@ -294,7 +294,7 @@ index a7c9a96..dc056cb 100644
      let mut inventory = Inventory::load(&ctx.db, ch.id).await?;
      // Objets Cash encore dans l'inventaire ordinaire : rangés dans l'inventaire Cash (items.rs).
      let sorted = inventory.sort_cash(&ctx.db, &ctx.catalog).await?;
-@@ -899,10 +908,11 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
+@@ -900,10 +909,11 @@ async fn game_enter(ctx: &WorldCtx, st: &mut WorldState, s: &SessionHandle, p: &
          },
      );
      st.by_cid.insert(cid, s.id());

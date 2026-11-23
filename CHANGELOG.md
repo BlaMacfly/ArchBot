@@ -1,5 +1,18 @@
 # Journal des versions
 
+## Non publié — 2026-11-23
+
+ArchCore `3dd6fe1` (World.CreatureSpeed pour la vitesse des animaux ; plus de fausse annulation d'échange à la sortie
+d'un joueur).
+
+- Patch ArchCore régénéré pour `3dd6fe1` : mêmes 12 fichiers, mêmes lignes ajoutées et retirées (121 / 9). Seul le
+  contexte change : `remove_player` appelle `trade::cancel_if_trading` (le patch la rend toujours `pub(crate)`) ;
+  ArchBot n'appelle pas `trade::cancel` lui-même, un bot qui sort passe par `remove_player`.
+- Vérifié : ArchBot 48 tests ; ArchCore patché, 385 tests (feature `archbot`) ; arrêt par le launcher ArchHome sur le serveur de test (15 bots puis le joueur sortis, plus d'annulation d'échange affichée, « arrêt terminé »).
+
+EN — Patch updated for ArchCore `3dd6fe1` (World.CreatureSpeed, no more false trade cancellation on logout): same
+12 files, context only. 48 ArchBot tests and 385 patched ArchCore tests passed; clean stop through the ArchHome launcher (15 bots then the player out, no trade cancellation shown, "arrêt terminé").
+
 ## Non publié — 2026-11-22
 
 ArchCore `a8610ef` (arrêt propre du serveur : plus d'entrée en jeu, annonce, sortie de chaque joueur avec sa position).
